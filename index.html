@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tidepool - Dataflow Architecture Debugger</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tidepool - Dataflow Architecture Debugger</h1>
+            <p>Visualize dataflow graphs and token flow through instruction traces</p>
+        </header>
+
+        <div class="controls">
+            <div class="file-inputs">
+                <div class="input-group">
+                    <label for="dotFile">DOT File:</label>
+                    <input type="file" id="dotFile" accept=".dot,.gv">
+                    <span id="dotFileName" class="file-name"></span>
+                </div>
+                <div class="input-group">
+                    <label for="fireLog">Fire Log:</label>
+                    <input type="file" id="fireLog" accept=".log,.txt">
+                    <span id="fireLogFileName" class="file-name"></span>
+                </div>
+            </div>
+            <div class="playback-controls">
+                <button id="playBtn" disabled>▶ Play</button>
+                <button id="pauseBtn" disabled>⏸ Pause</button>
+                <button id="resetBtn" disabled>⏮ Reset</button>
+                <button id="stepBtn" disabled>⏭ Step</button>
+                <label for="speedControl">Speed:</label>
+                <input type="range" id="speedControl" min="1" max="10" value="5" disabled>
+                <span id="speedValue">5x</span>
+            </div>
+            <div class="status">
+                <span id="cycleInfo">Cycle: 0 / 0</span>
+                <span id="statusMessage"></span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="graph-container">
+                <div id="graph"></div>
+            </div>
+            <div class="log-panel">
+                <h3>Execution Log</h3>
+                <div id="logContent"></div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>Instructions</h3>
+            <ol>
+                <li>Load a DOT file to visualize the dataflow graph (nodes = instructions, edges = data dependencies)</li>
+                <li>Load a fire.log file containing execution traces (format: cycle, instruction_id, outputs...)</li>
+                <li>Use playback controls to visualize token flow through the graph</li>
+                <li>Each edge will highlight as data flows from one instruction to another</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="dot-renderer.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
