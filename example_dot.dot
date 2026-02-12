@@ -1,0 +1,235 @@
+digraph "dataflow_graph_0" {
+    // Graph metadata
+    label="Dataflow Graph - after_lea_indexed_mem_folding";
+    labelloc="t";
+    fontname="Arial Bold";
+    fontsize=16;
+    rankdir=TB;
+    bgcolor=white;
+    
+    // Default node and edge styles
+    node [shape=box, style=filled, fontname="Arial", fontsize=10];
+    edge [fontname="Arial", fontsize=8];
+
+    // IR Dump
+    subgraph cluster_ir_dump {
+        label="MLIR IR";
+        style=filled;
+        fillcolor="#F8F8F8";
+        color="#888888";
+        fontname="Arial Bold";
+        fontsize=12;
+        rank=min;
+
+        ir_text [shape=plaintext, fontname="Courier", fontsize=8, label="%0 = \"dataflow.graph\"(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5) ({\l^bb0(%arg6: !dataflow.instruction_pointer, %arg7: !llvm.ptr, %arg8: !llvm.ptr, %arg9: !llvm.ptr, %arg10: i64, %arg11: ...\l  %1 = \"dataflow.constant\"(%4) <{value = 0 : i64}> : (!dataflow.instruction_pointer) -> i64\l  %2 = \"dataflow.constant\"(%4) <{value = 2 : i64}> : (!dataflow.instruction_pointer) -> i64\l  %3 = \"dataflow.constant\"(%4) <{value = 1 : i64}> : (!dataflow.instruction_pointer) -> i64\l  %4 = \"dataflow.copy\"(%arg6) {arg_index = 0 : i64, function_input, is_return_address_copy} : (!dataflow.instruction_poi...\l  %5:2 = \"riptide.stream\"(%1, %12, %20) <{is_true_branch = true, predicate = \"ult\"}> : (i64, i64, i64) -> (i64, i1)\l  %6 = \"riptide.carry\"(%5#1, %1, %9) : (i1, i64, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id ...\l  %7 = \"riptide.carry\"(%5#1, %2, %10) : (i1, i64, !dataflow.memord<source_mem_id = 2>) -> !dataflow.memord<source_mem_id ...\l  %8 = \"riptide.carry\"(%5#1, %3, %11) : (i1, i64, !dataflow.memord<source_mem_id = 1>) -> !dataflow.memord<source_mem_id ...\l  %9 = \"dataflow.true_steer\"(%5#1, %55) : (i1, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id = ...\l  %10 = \"dataflow.true_steer\"(%5#1, %56) : (i1, !dataflow.memord<source_mem_id = 2>) -> !dataflow.memord<source_mem_id = ...\l  %11 = \"dataflow.true_steer\"(%5#1, %57) : (i1, !dataflow.memord<source_mem_id = 1>) -> !dataflow.memord<source_mem_id = ...\l  %12 = \"dataflow.pseudo_constant\"(%4) <{arg_index = 4 : i64}> {function_input} : (!dataflow.instruction_pointer) -> i64\l  %13 = \"dataflow.true_steer\"(%5#1, %6) : (i1, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id = ...\l  %14 = \"dataflow.false_steer\"(%5#1, %6) : (i1, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id = ...\l  %15 = \"dataflow.true_steer\"(%5#1, %7) : (i1, !dataflow.memord<source_mem_id = 2>) -> !dataflow.memord<source_mem_id = ...\l  %16 = \"dataflow.false_steer\"(%5#1, %7) : (i1, !dataflow.memord<source_mem_id = 2>) -> !dataflow.memord<source_mem_id = ...\l  %17 = \"dataflow.true_steer\"(%5#1, %8) : (i1, !dataflow.memord<source_mem_id = 1>) -> !dataflow.memord<source_mem_id = ...\l  %18 = \"dataflow.false_steer\"(%5#1, %8) : (i1, !dataflow.memord<source_mem_id = 1>) -> !dataflow.memord<source_mem_id = ...\l  %19 = \"dataflow.constant\"(%5#0) <{value = 0 : i64}> : (i64) -> i64\l  %20 = \"dataflow.constant\"(%4) <{value = 1 : i64}> : (!dataflow.instruction_pointer) -> i64\l  %21 = \"dataflow.pseudo_constant\"(%5#0) <{arg_index = 3 : i64}> {function_input} : (i64) -> !llvm.ptr\l  %22 = \"dataflow.pseudo_constant\"(%5#0) <{arg_index = 5 : i64}> {function_input} : (i64) -> i64\l  %23 = \"arith.muli\"(%5#0, %22) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64\l  %24 = \"riptide.carry\"(%25#1, %19, %50) : (i1, i64, i64) -> i64\l  %25:2 = \"riptide.stream\"(%19, %41, %40) <{is_true_branch = true, predicate = \"ult\"}> : (i64, i64, i64) -> (i64, i1)\l  %26 = \"riptide.invariant\"(%25#1, %23) : (i1, i64) -> i64\l  %27 = \"riptide.invariant\"(%25#1, %13) : (i1, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id = ...\l  %28 = \"riptide.carry\"(%25#1, %15, %48#1) : (i1, !dataflow.memord<source_mem_id = 2>, !dataflow.memord<source_mem_id = ...\l  %29 = \"riptide.carry\"(%25#1, %17, %45#1) : (i1, !dataflow.memord<source_mem_id = 1>, !dataflow.memord<source_mem_id = ...\l  %30 = \"dataflow.true_steer\"(%25#1, %24) : (i1, i64) -> i64\l  %31 = \"dataflow.false_steer\"(%25#1, %24) : (i1, i64) -> i64\l  %32 = \"dataflow.true_steer\"(%25#1, %26) : (i1, i64) -> i64\l  %33 = \"dataflow.true_steer\"(%25#1, %24) : (i1, i64) -> !llvm.ptr\l  %34 = \"dataflow.pseudo_constant\"(%33) <{arg_index = 1 : i64}> {function_input} : (!llvm.ptr) -> !llvm.ptr\l  %35 = \"dataflow.true_steer\"(%25#1, %24) : (i1, i64) -> !llvm.ptr\l  %36 = \"dataflow.pseudo_constant\"(%35) <{arg_index = 2 : i64}> {function_input} : (!llvm.ptr) -> !llvm.ptr\l  %37 = \"dataflow.true_steer\"(%25#1, %27) : (i1, !dataflow.memord<source_mem_id = 0>) -> !dataflow.memord<source_mem_id ...\l  %38 = \"dataflow.false_steer\"(%25#1, %28) : (i1, !dataflow.memord<source_mem_id = 2>) -> !dataflow.memord<source_mem_id ...\l  %39 = \"dataflow.false_steer\"(%25#1, %29) : (i1, !dataflow.memord<source_mem_id = 1>) -> !dataflow.memord<source_mem_id ...\l  %40 = \"dataflow.constant\"(%5#0) <{value = 1 : i64}> : (i64) -> i64\l  %41 = \"dataflow.pseudo_constant\"(%5#0) <{arg_index = 5 : i64}> {function_input} : (i64) -> i64\l  %42 = \"arith.addi\"(%25#0, %32) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64\l  %43 = \"arith.trunci\"(%42) : (i64) -> i32\l  %44 = \"arith.extsi\"(%43) : (i32) -> i64\l  %45:2 = \"dataflow.loadIndex\"(%34, %44, %37) {alignment = 4 : i64, dfc_alias_set = 0 : i64, dfc_mem_id = 1 : i64, ...\l  %46 = \"arith.trunci\"(%25#0) : (i64) -> i32\l  %47 = \"arith.extsi\"(%46) : (i32) -> i64\l  %48:2 = \"dataflow.loadIndex\"(%36, %47, %37) {alignment = 4 : i64, dfc_alias_set = 0 : i64, dfc_mem_id = 2 : i64, ...\l  %49 = \"arith.muli\"(%48#0, %45#0) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64\l  %50 = \"arith.addi\"(%49, %30) <{overflowFlags = #arith.overflow<none>}> : (i64, i64) -> i64\l  %51 = \"arith.trunci\"(%5#0) : (i64) -> i32\l  %52 = \"arith.extsi\"(%51) : (i32) -> i64\l  %53 = \"dataflow.order\"(%38, %39) : (!dataflow.memord<source_mem_id = 2>, !dataflow.memord<source_mem_id = 1>) -> ...\l  %54 = \"dataflow.storeIndex\"(%21, %52, %31, %53) {alignment = 4 : i64, dfc_alias_set = 0 : i64, dfc_mem_id = 0 : i64, ...\l  %55 = \"dataflow.merge\"(%5#1, %54, %14) : (i1, !dataflow.memord<source_mem_id = 0>, !dataflow.memord<source_mem_id = 0>)...\l  %56 = \"dataflow.merge\"(%5#1, %38, %16) : (i1, !dataflow.memord<source_mem_id = 2>, !dataflow.memord<source_mem_id = 2>)...\l  %57 = \"dataflow.merge\"(%5#1, %39, %18) : (i1, !dataflow.memord<source_mem_id = 1>, !dataflow.memord<source_mem_id = 1>)...\l  \"dataflow.send\"(%4, %1) : (!dataflow.instruction_pointer, i64) -> ()\l  \"dataflow.yield\"(%1) : (i64) -> ()\l}) : (!dataflow.instruction_pointer, !llvm.ptr, !llvm.ptr, !llvm.ptr, i64, i64) -> i64", style=filled, fillcolor="#FFFFFF"];
+    }
+
+    // Graph arguments (inputs)
+    graph_arg_0 [label="%arg0\n!dataflow.instruc...", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+    graph_arg_1 [label="%arg1\n!llvm.ptr", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+    graph_arg_2 [label="%arg2\n!llvm.ptr", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+    graph_arg_3 [label="%arg3\n!llvm.ptr", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+    graph_arg_4 [label="%arg4\ni64", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+    graph_arg_5 [label="%arg5\ni64", shape=ellipse, fillcolor="#FFD700", style="filled,bold", penwidth=2];
+
+    // Operation nodes
+    dataflow_constant_1 [label="%0 = 0\n[ID:0]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_constant_2 [label="%1 = 2\n[ID:1]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_constant_3 [label="%2 = 1\n[ID:2]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_copy_4 [label="%3 = dataflow.copy\n{function_input}\n[ID:3]", shape=parallelogram, fillcolor="#B8B8D0", style="filled,bold", penwidth=2];
+    riptide_stream_5 [label="%4, %5 = riptide.stream\n[ID:4]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    riptide_carry_6 [label="%6 = riptide.carry\n[ID:5]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    riptide_carry_7 [label="%7 = riptide.carry\n[ID:6]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    riptide_carry_8 [label="%8 = riptide.carry\n[ID:7]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    dataflow_true_steer_9 [label="%9 = dataflow.true_steer\n[ID:8]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_10 [label="%10 = dataflow.true_steer\n[ID:9]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_11 [label="%11 = dataflow.true_steer\n[ID:10]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_pseudo_constant_12 [label="%12 = dataflow.pseudo_constant\n[ID:11]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_13 [label="%13 = dataflow.true_steer\n[ID:12]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_14 [label="%14 = dataflow.false_steer\n[ID:13]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_15 [label="%15 = dataflow.true_steer\n[ID:14]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_16 [label="%16 = dataflow.false_steer\n[ID:15]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_17 [label="%17 = dataflow.true_steer\n[ID:16]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_18 [label="%18 = dataflow.false_steer\n[ID:17]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_constant_19 [label="%19 = 0\n[ID:18]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_constant_20 [label="%20 = 1\n[ID:19]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_pseudo_constant_21 [label="%21 = dataflow.pseudo_constant\n[ID:20]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_pseudo_constant_22 [label="%22 = dataflow.pseudo_constant\n[ID:21]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    arith_muli_23 [label="%23 = arith.muli\n[ID:22]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    riptide_carry_24 [label="%24 = riptide.carry\n[ID:23]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    riptide_stream_25 [label="%25, %26 = riptide.stream\n[ID:24]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    riptide_invariant_26 [label="%27 = riptide.invariant\n[ID:25]", shape=hexagon, fillcolor="#45B7D1", style="filled,bold", penwidth=2];
+    riptide_invariant_27 [label="%28 = riptide.invariant\n[ID:26]", shape=hexagon, fillcolor="#45B7D1", style="filled,bold", penwidth=2];
+    riptide_carry_28 [label="%29 = riptide.carry\n[ID:27]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    riptide_carry_29 [label="%30 = riptide.carry\n[ID:28]", shape=hexagon, fillcolor="#96CEB4", style="filled,bold", penwidth=2];
+    dataflow_true_steer_30 [label="%31 = dataflow.true_steer\n[ID:29]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_31 [label="%32 = dataflow.false_steer\n[ID:30]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_32 [label="%33 = dataflow.true_steer\n[ID:31]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_33 [label="%34 = dataflow.true_steer\n[ID:32]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_pseudo_constant_34 [label="%35 = dataflow.pseudo_constant\n[ID:33]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_35 [label="%36 = dataflow.true_steer\n[ID:34]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_pseudo_constant_36 [label="%37 = dataflow.pseudo_constant\n[ID:35]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_true_steer_37 [label="%38 = dataflow.true_steer\n[ID:36]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_38 [label="%39 = dataflow.false_steer\n[ID:37]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_false_steer_39 [label="%40 = dataflow.false_steer\n[ID:38]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_constant_40 [label="%41 = 1\n[ID:39]", shape=ellipse, fillcolor="#F7F1E3", style="filled,bold", penwidth=2];
+    dataflow_pseudo_constant_41 [label="%42 = dataflow.pseudo_constant\n[ID:40]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    arith_addi_42 [label="%43 = arith.addi\n[ID:41]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_trunci_43 [label="%44 = arith.trunci\n[ID:42]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_extsi_44 [label="%45 = arith.extsi\n[ID:43]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    dataflow_loadIndex_45 [label="%46, %47 = dataflow.loadIndex\n[ID:44]", shape=box, fillcolor="#DDA0DD", style="filled,bold", penwidth=2];
+    arith_trunci_46 [label="%48 = arith.trunci\n[ID:45]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_extsi_47 [label="%49 = arith.extsi\n[ID:46]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    dataflow_loadIndex_48 [label="%50, %51 = dataflow.loadIndex\n[ID:47]", shape=box, fillcolor="#DDA0DD", style="filled,bold", penwidth=2];
+    arith_muli_49 [label="%52 = arith.muli\n[ID:48]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_addi_50 [label="%53 = arith.addi\n[ID:49]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_trunci_51 [label="%54 = arith.trunci\n[ID:50]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    arith_extsi_52 [label="%55 = arith.extsi\n[ID:51]", shape=box, fillcolor="#98D8C8", style="filled,bold", penwidth=2];
+    dataflow_order_53 [label="%56 = dataflow.order\n[ID:52]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+    dataflow_storeIndex_54 [label="%57 = dataflow.storeIndex\n[ID:53]", shape=box, fillcolor="#DDA0DD", style="filled,bold", penwidth=2];
+    dataflow_merge_55 [label="%58 = dataflow.merge\n[ID:54]", shape=invtrapezium, fillcolor="#4ECDC4", style="filled,bold", penwidth=2];
+    dataflow_merge_56 [label="%59 = dataflow.merge\n[ID:55]", shape=invtrapezium, fillcolor="#4ECDC4", style="filled,bold", penwidth=2];
+    dataflow_merge_57 [label="%60 = dataflow.merge\n[ID:56]", shape=invtrapezium, fillcolor="#4ECDC4", style="filled,bold", penwidth=2];
+    dataflow_send_58 [label="dataflow.send\n[ID:57]", fillcolor="#E8E8E8", style="filled", penwidth=2];
+
+    // Edges (color-coded by type)
+    dataflow_copy_4 -> dataflow_constant_1 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_copy_4 -> dataflow_constant_2 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_copy_4 -> dataflow_constant_3 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    graph_arg_0 -> dataflow_copy_4 [color="#E91E63", penwidth=2, arrowsize=0.8, label="op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_1 -> riptide_stream_5 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_12 -> riptide_stream_5 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_20 -> riptide_stream_5 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> riptide_carry_6 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_1 -> riptide_carry_6 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_9 -> riptide_carry_6 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> riptide_carry_7 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_2 -> riptide_carry_7 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_10 -> riptide_carry_7 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> riptide_carry_8 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_3 -> riptide_carry_8 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_11 -> riptide_carry_8 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_9 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_merge_55 -> dataflow_true_steer_9 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_10 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_merge_56 -> dataflow_true_steer_10 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_11 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_merge_57 -> dataflow_true_steer_11 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_copy_4 -> dataflow_pseudo_constant_12 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_13 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_6 -> dataflow_true_steer_13 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_false_steer_14 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_6 -> dataflow_false_steer_14 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_15 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_7 -> dataflow_true_steer_15 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_false_steer_16 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_7 -> dataflow_false_steer_16 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_true_steer_17 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_8 -> dataflow_true_steer_17 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_false_steer_18 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_8 -> dataflow_false_steer_18 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_constant_19 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_copy_4 -> dataflow_constant_20 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_pseudo_constant_21 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_pseudo_constant_22 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> arith_muli_23 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_22 -> arith_muli_23 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> riptide_carry_24 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_19 -> riptide_carry_24 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    arith_addi_50 -> riptide_carry_24 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_19 -> riptide_stream_25 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_41 -> riptide_stream_25 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_40 -> riptide_stream_25 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> riptide_invariant_26 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_muli_23 -> riptide_invariant_26 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> riptide_invariant_27 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_13 -> riptide_invariant_27 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> riptide_carry_28 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_15 -> riptide_carry_28 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_loadIndex_48 -> riptide_carry_28 [color=black, penwidth=2, arrowsize=0.8, label="res[1]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> riptide_carry_29 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_17 -> riptide_carry_29 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_loadIndex_45 -> riptide_carry_29 [color=black, penwidth=2, arrowsize=0.8, label="res[1]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_true_steer_30 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_24 -> dataflow_true_steer_30 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_false_steer_31 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_24 -> dataflow_false_steer_31 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_true_steer_32 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_invariant_26 -> dataflow_true_steer_32 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_true_steer_33 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_24 -> dataflow_true_steer_33 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_33 -> dataflow_pseudo_constant_34 [color="#9B59B6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_true_steer_35 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_24 -> dataflow_true_steer_35 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_35 -> dataflow_pseudo_constant_36 [color="#9B59B6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_true_steer_37 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_invariant_27 -> dataflow_true_steer_37 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_false_steer_38 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_28 -> dataflow_false_steer_38 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> dataflow_false_steer_39 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_carry_29 -> dataflow_false_steer_39 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_constant_40 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_pseudo_constant_41 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> arith_addi_42 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_32 -> arith_addi_42 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    arith_addi_42 -> arith_trunci_43 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_trunci_43 -> arith_extsi_44 [color="#3498DB", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_34 -> dataflow_loadIndex_45 [color="#9B59B6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_extsi_44 -> dataflow_loadIndex_45 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_37 -> dataflow_loadIndex_45 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_25 -> arith_trunci_46 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_trunci_46 -> arith_extsi_47 [color="#3498DB", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_36 -> dataflow_loadIndex_48 [color="#9B59B6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_extsi_47 -> dataflow_loadIndex_48 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_37 -> dataflow_loadIndex_48 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    dataflow_loadIndex_48 -> arith_muli_49 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_loadIndex_45 -> arith_muli_49 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    arith_muli_49 -> arith_addi_50 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_true_steer_30 -> arith_addi_50 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> arith_trunci_51 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_trunci_51 -> arith_extsi_52 [color="#3498DB", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_38 -> dataflow_order_53 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_39 -> dataflow_order_53 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_pseudo_constant_21 -> dataflow_storeIndex_54 [color="#9B59B6", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    arith_extsi_52 -> dataflow_storeIndex_54 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_31 -> dataflow_storeIndex_54 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    dataflow_order_53 -> dataflow_storeIndex_54 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[3]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_merge_55 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_storeIndex_54 -> dataflow_merge_55 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_14 -> dataflow_merge_55 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_merge_56 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_38 -> dataflow_merge_56 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_16 -> dataflow_merge_56 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    riptide_stream_5 -> dataflow_merge_57 [color="#E74C3C", penwidth=1, arrowsize=0.8, label="res[1]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_39 -> dataflow_merge_57 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_false_steer_18 -> dataflow_merge_57 [color=black, penwidth=2, arrowsize=0.8, label="res[0]→op[2]", fontsize=8, fontcolor="#555555"];
+    dataflow_copy_4 -> dataflow_send_58 [color="#E91E63", penwidth=2, arrowsize=0.8, label="res[0]→op[0]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_1 -> dataflow_send_58 [color="#2874A6", penwidth=2, arrowsize=0.8, label="res[0]→op[1]", fontsize=8, fontcolor="#555555"];
+    dataflow_constant_1 -> graph_output_0 [color="#2874A6", penwidth=2, arrowsize=0.8];
+    graph_output_0 [label="output", shape=ellipse, fillcolor="#90EE90", style="filled,bold", penwidth=2];
+    // Graph Statistics
+    subgraph cluster_statistics {
+        label="Graph Statistics";
+        style=filled;
+        fillcolor="#FFFACD";
+        color="#DAA520";
+        fontname="Arial Bold";
+        fontsize=12;
+        penwidth=2;
+
+        stats [shape=plaintext, fontname="Arial", fontsize=10, label=<
+            <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+                <TR><TD ALIGN="LEFT"><B>Total Nodes:</B></TD><TD ALIGN="RIGHT">64</TD></TR>
+                <TR><TD ALIGN="LEFT"><B>Total Edges:</B></TD><TD ALIGN="RIGHT">113</TD></TR>
+                <TR><TD COLSPAN="2" BGCOLOR="#DAA520" HEIGHT="1"></TD></TR>
+                <TR><TD ALIGN="LEFT">Constants:</TD><TD ALIGN="RIGHT">6</TD></TR>
+                <TR><TD ALIGN="LEFT">Steers:</TD><TD ALIGN="RIGHT">17</TD></TR>
+                <TR><TD ALIGN="LEFT">Merges:</TD><TD ALIGN="RIGHT">3</TD></TR>
+                <TR><TD ALIGN="LEFT">Arithmetic:</TD><TD ALIGN="RIGHT">10</TD></TR>
+                <TR><TD ALIGN="LEFT">Memory Ops:</TD><TD ALIGN="RIGHT">3</TD></TR>
+                <TR><TD ALIGN="LEFT">Other:</TD><TD ALIGN="RIGHT">19</TD></TR>
+            </TABLE>
+        >];
+    }
+
+}

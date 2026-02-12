@@ -1,122 +1,157 @@
-# Tidepool - Dataflow Architecture Debugger
+# Fire.log to DOT Port Annotation Mapping Documentation
 
-A web-based dataflow debugging interface for visualizing instruction execution and token flow through dataflow graphs.
+This directory contains comprehensive documentation mapping **fire.log execution traces** to **DOT graph port annotations** (res[n] and op[n]).
 
-## Features
+## Files
 
-- 📊 **DOT File Visualization**: Renders DOT files as interactive dataflow graphs
-- 🔄 **Token Flow Animation**: Visualizes data flow through graph edges during execution
-- 📝 **Fire Log Parser**: Parses execution trace files showing cycle time, instruction IDs, and outputs
-- ▶️ **Playback Controls**: Step through execution or play continuously with adjustable speed
-- 🎯 **Real-time Highlighting**: Active instructions and data flows are highlighted during playback
+### 1. **fire_log_port_mapping.md** (14 KB)
+**Complete reference guide** with detailed sections for:
+- Arithmetic operations (add, mul, div, etc.)
+- Memory instructions (load, store, loadIndex, storeIndex)
+- Steer/routing instructions
+- RipTide instructions (carry, invariant, stream, merge)
+- TTDA tag operations
+- Full instruction-by-instruction breakdown with FIRE_LOG code snippets
 
-## Architecture
+**Use this for:** Detailed understanding of how each instruction logs its operands and results
 
-- **Nodes**: Each node represents an instruction in the dataflow graph
-- **Edges**: Each edge represents a dataflow dependence between instructions
-- **Fire Log**: Execution trace file format: `<cycle> <instruction_id> <output1> <output2> ...`
+### 2. **fire_log_quick_reference.txt** (3 KB)
+**Quick lookup guide** organized by instruction category with:
+- One-liner examples for each instruction type
+- Logging format patterns
+- Special notes and gotchas (⚠️ marked)
+- How to use the mapping in 5 steps
 
-## Getting Started
+**Use this for:** Quick reference when analyzing a specific fire.log entry
 
-### Quick Start
+### 3. **example_trace.md** (6 KB)
+**Concrete walkthrough** tracing real fire.log entries:
+- Side-by-side comparison of fire.log, YAML, and DOT representations
+- Step-by-step interpretation of instructions
+- Key insights about state, multiple consumers, control flow
+- Template for tracing your own entries
 
-1. Open `index.html` in a web browser (no build step required!)
-2. Load a DOT file containing your dataflow graph
-3. Load a fire.log file with execution traces
-4. Use playback controls to visualize execution
+**Use this for:** Understanding the full picture with a real example
 
-### File Formats
+---
 
-#### DOT File Format
-Standard Graphviz DOT format representing the dataflow graph:
-```dot
-digraph dataflow {
-    LOAD_A [label="LOAD A"];
-    LOAD_B [label="LOAD B"];
-    ADD [label="ADD"];
-    
-    LOAD_A -> ADD [label="operand1"];
-    LOAD_B -> ADD [label="operand2"];
-}
+## Quick Start
+
+### I have a fire.log entry like `[5] (22) mul 0 4 0`. What does it mean?
+
+1. Open **fire_log_quick_reference.txt**
+2. Find "[ARITHMETIC & LOGIC]" section
+3. See pattern: `op[0] op[1] res[0]`
+4. Result: op[0]=0, op[1]=4, res[0]=0
+
+### I want to trace how data flows through the graph
+
+1. Open **example_trace.md**
+2. Follow the "Trace Analysis" section
+3. See how fire.log values map to YAML inputs/outputs
+4. See how DOT edges are labeled `res[n]→op[m]`
+
+### I need the full technical details for an instruction type
+
+1. Open **fire_log_port_mapping.md**
+2. Search for the instruction type (e.g., "Carry Instruction")
+3. Review the C++ code showing what's logged
+4. Check the mapping table
+
+---
+
+## Key Concepts
+
+### res[n] - Output Ports
+- **Meaning:** The nth output result of an instruction
+- **In YAML:** Numbered by position in the instruction's return statement
+- **In fire.log:** Logged values that correspond to output results
+- **In DOT:** Edge source port in label `res[n]→op[m]`
+
+### op[n] - Input Ports  
+- **Meaning:** The nth input operand of an instruction
+- **In YAML:** Position in the instruction's `inputs` array
+- **In fire.log:** Logged values that correspond to operands gathered from inputs
+- **In DOT:** Edge destination port in label `res[n]→op[m]`
+
+### Example Mapping
+```
+YAML: inputs: [instr0, instr1] → op[0] from instr0, op[1] from instr1
+fire.log: [5] (22) mul 0 4 0 → value 0 is from instr0 (op[0]), value 4 from instr1 (op[1]), result is 0 (res[0])
+DOT: instr0 --[res[0]→op[0]]--> mul_22 --[res[0]→op[1]]--> instr48
 ```
 
-#### Fire Log Format
-Each line represents an instruction execution:
+---
+
+## Important Gotchas ⚠️
+
+1. **Store instruction reverses operand order in logging**
+   - YAML: inputs=[data, address, order]
+   - Log: address, addr, data (address logged first!)
+   - So arg[0]=op[1], arg[2]=op[0]
+
+2. **Stream logs result[1] first, not result[0]**
+   - Log format: last start bound step offset
+   - Maps to: res[1]=last, op[0]=start, op[1]=bound, op[2]=step
+
+3. **Carry state transitions are implicit**
+   - Log shows "INIT->BLOCK" marker but res[1] (next state) isn't explicitly logged
+   - State transitions are encoded in the marker string, not the numeric values
+
+4. **Load/Store have implicit res[1]=status**
+   - Only res[0] (data) is explicitly logged
+   - res[1] (status) is always 0 for load, 1 for store
+
+---
+
+## How the Mapping Works
+
+The fire.log values are generated by **FIRE_LOG() macros** in instruction implementations that log:
+
+```cpp
+// Example from carry INIT->BLOCK transition
+FIRE_LOG("INIT->BLOCK", data);  // data = gatherInput(t, 1) = op[1]
+
+// Example from arithmetic operation
+FIRE_LOG(op0, op1, result);  // Logs op[0], op[1], then res[0]
 ```
-<cycle> <instruction_id> <output1> <output2> ...
-```
 
-Example:
-```
-1 LOAD_A 42
-2 LOAD_B 10
-3 ADD 52
-```
+The order of values logged corresponds to:
+1. The order of `gatherInput()` calls (operands = op[n])
+2. The order of values in the return statement (results = res[n])
 
-### Fire Log Format
-Each line represents an instruction execution:
-```
-<cycle> <instruction_id> <output1> <output2> ...
-```
+This mapping is consistent across YAML (inputs/outputs arrays) and DOT (edge labels).
 
-Example:
-```
-1 LOAD_A 42
-2 LOAD_B 10
-3 ADD 52
-```
+---
 
-Where:
-- **cycle**: The cycle number when the instruction fired
-- **instruction_id**: The unique identifier of the instruction (must match a node ID in the DOT file)
-- **output values**: Zero or more output values produced by the instruction
+## Using This with the DOT Graph
 
-### Examples
+After you've identified res[n] and op[m] from fire.log:
 
-### Examples
+1. Open the enhanced DOT graph (with port annotations enabled)
+2. Find the instruction node in the graph
+3. Look for edges labeled `res[n]→op[m]`
+4. Verify they match what you found in fire.log
+5. Use this to trace data flow and understand execution
 
-Sample files are provided in the `examples/` directory:
-- `sample.dot`: A simple dataflow graph with 5 instructions
-- `sample.fire.log`: Corresponding execution trace (6 steps)
-- `complex.dot`: A more complex pipeline with 10 instructions
-- `complex.fire.log`: Execution trace for the complex pipeline (9 steps)
+Example: If fire.log shows `[5] (22) mul 0 4 0`:
+- In DOT, find mul_22 node
+- Look for incoming edge labeled `res[0]→op[0]` (from producer of 0)
+- Look for outgoing edge labeled `res[0]→op[1]` (to consumer at port 1)
 
-## Usage
+---
 
-1. **Load DOT File**: Click "DOT File" button and select your `.dot` or `.gv` file
-2. **Load Fire Log**: Click "Fire Log" button and select your `.log` file
-3. **Playback Controls**:
-   - ▶️ **Play**: Automatically step through execution
-   - ⏸ **Pause**: Pause automatic playback
-   - ⏮ **Reset**: Return to the beginning
-   - ⏭ **Step**: Manually advance one execution step
-   - **Speed**: Adjust playback speed (1x-10x)
+## References
 
-## Visualization
+- **Fire.log Format:** Records instruction execution: `[CYCLE] (INSTRUCTION_ID) NAME [ARGS...]`
+- **YAML Structure:** Compiled dataflow graph with explicit port connections
+- **DOT Graph:** Visual representation with type-based edge colors and width
+- **Port Annotations:** Enhanced DOT edges labeled `res[n]→op[m]` show exact port connections
 
-During playback:
-- **Active Node**: Highlighted in yellow/orange when executing
-- **Data Flow**: Edges animate as tokens flow between instructions
-- **Execution Log**: Shows current execution details in the side panel
+---
 
-## Technical Stack
-
-- Pure HTML5, CSS3, and JavaScript (no build tools required)
-- Custom DOT parser and SVG renderer (no external dependencies)
-- Modern CSS animations for token flow visualization
-- Responsive design for various screen sizes
-
-## Browser Support
-
-Works in all modern browsers supporting:
-- ES6 JavaScript
-- CSS Grid and Flexbox
-- SVG manipulation
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
+Generated: 2026-02-12
+Based on analysis of:
+- `/h/jaehyun3/riptide_opts/dfinfra/sim/src/instruction/` (instruction implementations)
+- `/h/jaehyun3/riptide_opts/dfinfra/compiler/lib/Dialect/Dataflow/Transforms/DumpDataflowGraphToYaml.cpp`
+- `/h/jaehyun3/riptide_opts/dfinfra/compiler/lib/Dialect/Dataflow/Transforms/DumpDataflowGraphToDot.cpp`
