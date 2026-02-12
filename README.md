@@ -80,7 +80,7 @@ During playback:
 ## Technical Stack
 
 - Pure HTML5, CSS3, and JavaScript (no build tools required)
-- [Viz.js](https://github.com/mdaines/viz.js/) for DOT file rendering
+- Custom DOT parser and SVG renderer (no external dependencies)
 - Modern CSS animations for token flow visualization
 - Responsive design for various screen sizes
 

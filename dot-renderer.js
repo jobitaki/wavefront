@@ -5,11 +5,17 @@ class DotRenderer {
         this.edges = [];
     }
 
+    // Helper function to create consistent edge IDs
+    static getEdgeId(from, to) {
+        return `${from}->${to}`;
+    }
+
     parse(dotContent) {
         this.nodes = [];
         this.edges = [];
 
-        // Remove comments
+        // Simple comment removal - note: this doesn't handle comments within strings
+        // For production use, consider a more robust parser
         dotContent = dotContent.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 
         // Extract node definitions
@@ -184,7 +190,7 @@ class DotRenderer {
     }
 
     renderEdge(edge, fromNode, toNode) {
-        const edgeId = `${edge.from}->${edge.to}`;
+        const edgeId = DotRenderer.getEdgeId(edge.from, edge.to);
         
         // Calculate connection points
         const dx = toNode.x - fromNode.x;

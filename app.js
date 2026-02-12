@@ -236,8 +236,8 @@ class TidepoolDebugger {
         // Highlight outgoing edges from this instruction
         this.edgeMap.forEach((edge, edgeId) => {
             // Check if this edge starts from the current instruction
-            if (edgeId.startsWith(entry.instructionId + '->') || 
-                edgeId.startsWith(entry.instructionId + '--')) {
+            const expectedEdgeId = DotRenderer.getEdgeId(entry.instructionId, '');
+            if (edgeId.startsWith(expectedEdgeId.replace('->', ''))) {
                 const path = edge.querySelector('path');
                 if (path) {
                     path.classList.add('edge-token-flow');
