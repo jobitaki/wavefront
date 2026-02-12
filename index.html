@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dataflow Token Visualizer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=Orbit&display=swap" rel="stylesheet">
     <!-- Graphviz WASM library for rendering DOT graphs -->
     <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.5.0/dist/graphviz.umd.js"></script>
     <!-- D3.js for SVG manipulation utilities -->
@@ -16,7 +20,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'IBM Plex Sans', sans-serif;
             background: #1a1a1a;
             min-height: 100vh;
             overflow: hidden;
@@ -33,23 +37,21 @@
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(4, 14, 62, 0.9);
             color: #333;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            padding: 7px 30px;
+            border-radius: 40px;
+            box-shadow: 0 4px 5px rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(10px);
             z-index: 100;
             max-width: 350px;
         }
 
         header h1 {
+            font-family: "Orbit", sans-serif;
+            color: white;
             font-size: 1.5em;
             margin-bottom: 5px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
         }
 
         header p {
@@ -129,25 +131,25 @@
         .playback-controls {
             position: absolute;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 20px;
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 15px 25px;
+            padding: 15px 20px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 50px;
+            border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             z-index: 100;
+            max-width: 400px;
         }
 
         button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
-            border-radius: 20px;
-            font-size: 0.9em;
+            border-radius: 5px;
+            font-size: 0.85em;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: 600;
@@ -183,12 +185,13 @@
             gap: 15px;
             padding: 8px 15px;
             background: rgba(233, 236, 239, 0.8);
-            border-radius: 20px;
+            border-radius: 5px;
             white-space: nowrap;
+            width: 100%;
         }
 
         .cycle-display {
-            font-size: 1em;
+            font-size: 0.9em;
             font-weight: bold;
             color: #495057;
         }
@@ -197,6 +200,10 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            width: 100%;
+            padding: 8px 15px;
+            background: rgba(233, 236, 239, 0.8);
+            border-radius: 5px;
         }
 
         .speed-control label {
@@ -206,14 +213,15 @@
         }
 
         .speed-control input[type="range"] {
-            width: 100px;
+            flex: 1;
+            min-width: 100px;
         }
 
         /* Zoom controls */
         .zoom-controls {
             position: absolute;
-            top: 120px;
-            right: 20px;
+            top: 100px;
+            left: 20px;
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -286,7 +294,7 @@
         #graph-container {
             width: 100%;
             height: 100%;
-            background: #fafafa;
+            background: white;
             overflow: hidden;
             position: relative;
             cursor: grab;
@@ -382,7 +390,7 @@
 
         .execution-log {
             position: absolute;
-            bottom: 20px;
+            bottom: 250px;
             left: 20px;
             width: 400px;
             max-height: 250px;
@@ -474,8 +482,7 @@
         </div>
 
         <header>
-            <h1>🌊 Dataflow Token Visualizer</h1>
-            <p>Cycle-by-cycle dataflow visualization</p>
+            <h1>wavefront</h1>
         </header>
 
         <div class="zoom-controls">
@@ -485,7 +492,8 @@
         </div>
 
         <div class="controls">
-            <div class="file-upload">
+            <div class="file-upload" id="fileUploadContainer">
+                <button id="toggleUpload" class="toggle-btn">Toggle File Upload</button>
                 <div class="upload-section">
                     <label for="dotFile">DOT Graph File (.dot):</label>
                     <div class="file-input-wrapper">
@@ -516,22 +524,22 @@
                     <div class="stat-value" id="totalNodes">0</div>
                 </div>
             </div>
+        </div>
 
-            <div class="playback-controls" style="display: none;" id="playbackControls">
-                <button class="btn-primary" id="playBtn" disabled>▶ Play</button>
-                <button class="btn-secondary" id="pauseBtn" disabled>⏸ Pause</button>
-                <button class="btn-secondary" id="prevBtn" disabled>⏮ Previous</button>
-                <button class="btn-secondary" id="nextBtn" disabled>⏭ Next</button>
-                <button class="btn-secondary" id="resetBtn" disabled>⏮ Reset</button>
-                <div class="cycle-info">
-                    <span class="cycle-display">Cycle: <span id="currentCycle">0</span></span>
-                    <span class="cycle-display" style="margin-left: 20px;">Instructions: <span id="cycleInstrCount">0</span></span>
-                </div>
-                <div class="speed-control">
-                    <label for="speedSlider">Speed:</label>
-                    <input type="range" id="speedSlider" min="1" max="10" value="5" step="1" />
-                    <span id="speedValue">5x</span>
-                </div>
+        <div class="playback-controls" style="display: none;" id="playbackControls">
+            <button class="btn-primary" id="playBtn" disabled>▶</button>
+            <button class="btn-secondary" id="pauseBtn" disabled>⏸</button>
+            <button class="btn-secondary" id="prevBtn" disabled>⏮</button>
+            <button class="btn-secondary" id="nextBtn" disabled>⏭</button>
+            <button class="btn-secondary" id="resetBtn" disabled>⏮</button>
+            <div class="cycle-info">
+                <span class="cycle-display">Cycle: <span id="currentCycle">0</span></span>
+                <span class="cycle-display" style="margin-left: 20px;">Instructions: <span id="cycleInstrCount">0</span></span>
+            </div>
+            <div class="speed-control">
+                <label for="speedSlider">Speed:</label>
+                <input type="range" id="speedSlider" min="1" max="10" value="5" step="1" />
+                <span id="speedValue">5x</span>
             </div>
         </div>
 
@@ -539,15 +547,6 @@
             <!-- Execution entries will be added here -->
         </div>
 
-        <div class="instructions-panel">
-            <h3>📖 Quick Guide</h3>
-            <ol>
-                <li><strong>Upload:</strong> Select DOT graph & fire.log files</li>
-                <li><strong>Navigate:</strong> Drag to pan, scroll to zoom</li>
-                <li><strong>Play:</strong> Use controls to animate execution</li>
-                <li><strong>Shortcuts:</strong> Space (play/pause), ←/→ (step), Home/End (first/last)</li>
-            </ol>
-        </div>
     </div>
 
     <script src="app.js"></script>

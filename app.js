@@ -540,11 +540,11 @@ class DataflowVisualizer {
             if (bounds.width === 0 || bounds.height === 0) return;
             
             // Calculate scale to fit with some padding
-            const padding = 50;
+            // Use more padding to account for UI panels around the edges
+            const padding = 100;
             const scale = Math.min(
                 (containerWidth - padding * 2) / bounds.width,
-                (containerHeight - padding * 2) / bounds.height,
-                1 // Don't zoom in beyond 100%
+                (containerHeight - padding * 2) / bounds.height
             );
             
             // Calculate centering translation
@@ -581,3 +581,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.visualizer = new DataflowVisualizer();
     console.log('Dataflow Token Visualizer initialized');
 });
+
+const fileUploadContainer = document.getElementById('fileUploadContainer');
+    const toggleUploadButton = document.getElementById('toggleUpload');
+
+    toggleUploadButton.addEventListener('click', () => {
+        if (fileUploadContainer.style.display === 'none') {
+            fileUploadContainer.style.display = 'block';
+        } else {
+            fileUploadContainer.style.display = 'none';
+        }
+    });
