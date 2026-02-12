@@ -53,11 +53,33 @@ Example:
 3 ADD 52
 ```
 
+### Fire Log Format
+Each line represents an instruction execution:
+```
+<cycle> <instruction_id> <output1> <output2> ...
+```
+
+Example:
+```
+1 LOAD_A 42
+2 LOAD_B 10
+3 ADD 52
+```
+
+Where:
+- **cycle**: The cycle number when the instruction fired
+- **instruction_id**: The unique identifier of the instruction (must match a node ID in the DOT file)
+- **output values**: Zero or more output values produced by the instruction
+
+### Examples
+
 ### Examples
 
 Sample files are provided in the `examples/` directory:
-- `sample.dot`: A simple dataflow graph
-- `sample.fire.log`: Corresponding execution trace
+- `sample.dot`: A simple dataflow graph with 5 instructions
+- `sample.fire.log`: Corresponding execution trace (6 steps)
+- `complex.dot`: A more complex pipeline with 10 instructions
+- `complex.fire.log`: Execution trace for the complex pipeline (9 steps)
 
 ## Usage
 

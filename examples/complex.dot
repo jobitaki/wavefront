@@ -1,0 +1,35 @@
+digraph complex_pipeline {
+    rankdir=LR;
+    node [shape=box, style=filled, fillcolor=lightblue];
+    
+    // Input stage
+    INPUT_A [label="INPUT A"];
+    INPUT_B [label="INPUT B"];
+    INPUT_C [label="INPUT C"];
+    
+    // Processing stage
+    PROC_1 [label="PROCESS 1"];
+    PROC_2 [label="PROCESS 2"];
+    PROC_3 [label="PROCESS 3"];
+    
+    // Computation stage
+    COMPUTE_1 [label="COMPUTE 1"];
+    COMPUTE_2 [label="COMPUTE 2"];
+    
+    // Output stage
+    OUTPUT [label="OUTPUT"];
+    
+    // Data dependencies
+    INPUT_A -> PROC_1 [label="data"];
+    INPUT_B -> PROC_1 [label="data"];
+    INPUT_C -> PROC_2 [label="data"];
+    
+    PROC_1 -> COMPUTE_1 [label="result"];
+    PROC_2 -> COMPUTE_1 [label="result"];
+    PROC_2 -> PROC_3 [label="intermediate"];
+    
+    COMPUTE_1 -> COMPUTE_2 [label="partial"];
+    PROC_3 -> COMPUTE_2 [label="control"];
+    
+    COMPUTE_2 -> OUTPUT [label="final"];
+}
