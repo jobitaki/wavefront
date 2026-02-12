@@ -179,8 +179,9 @@ class DataflowVisualizer {
     async renderGraph() {
         const container = document.getElementById('graph-container');
         const loadingMsg = document.getElementById('loadingMessage');
+        const loadingNote = loadingMsg ? loadingMsg.querySelector('#loadingNote') : null;
 
-        loadingMsg.textContent = 'Rendering graph...';
+        if (loadingNote) loadingNote.textContent = 'Rendering graph...';
 
         try {
             // Wait for @hpcc-js/wasm library to be available
@@ -194,7 +195,9 @@ class DataflowVisualizer {
             
             // Insert the SVG into the container
             container.innerHTML = svgString;
-            loadingMsg.style.display = 'none';
+            // Mark container as having a graph so the background switches to white
+            container.classList.add('has-graph');
+            if (loadingMsg) loadingMsg.style.display = 'none';
 
             // Get the actual SVG element that was created
             this.graphSvg = container.querySelector('svg');
@@ -214,8 +217,8 @@ class DataflowVisualizer {
             console.log('Graph rendered successfully');
         } catch (error) {
             console.error('Error rendering graph:', error);
-            loadingMsg.textContent = `Error rendering graph: ${error.message}`;
-            loadingMsg.className = 'loading error';
+            if (loadingNote) loadingNote.textContent = `Error rendering graph: ${error.message}`;
+            if (loadingMsg) loadingMsg.classList.add('error');
         }
     }
 
@@ -290,7 +293,6 @@ class DataflowVisualizer {
     updateStats() {
         const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
         document.getElementById('totalCycles').textContent = maxCycle;
-        document.getElementById('totalInstructions').textContent = this.fireLogData.length;
         document.getElementById('totalNodes').textContent = this.nodeMap.size;
     }
 
@@ -435,20 +437,80 @@ class DataflowVisualizer {
                 // Highlight the entire node group
                 node.classList.add('highlight-node');
                 
-                // Add a token (animated circle) to show execution
-                const ellipse = node.querySelector('ellipse, polygon, rect');
-                if (ellipse) {
-                    const bbox = ellipse.getBBox();
-                    const cx = bbox.x + bbox.width / 2;
-                    const cy = bbox.y + bbox.height / 2;
-                    
-                    const token = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    token.setAttribute('cx', cx);
-                    token.setAttribute('cy', cy);
-                    token.setAttribute('r', '8');
-                    token.classList.add('token');
-                    
-                    this.graphSvg.appendChild(token);
+                // Place tokens at the end of outgoing edges. If no outgoing edge, fall back to node center.
+                const nodeName = this.nodeIdToName.get(instr.instructionId);
+                let placed = false;
+                if (nodeName) {
+                    const edges = this.graphSvg.querySelectorAll('g.edge');
+                    edges.forEach(edge => {
+                        const titleEl = edge.querySelector('title');
+                        if (!titleEl) return;
+                        const edgeTitle = titleEl.textContent.trim();
+                        if (edgeTitle.startsWith(nodeName + '->')) {
+                            // try to get the path end point
+                            const pathEl = edge.querySelector('path');
+                            if (pathEl && pathEl.getTotalLength) {
+                                const L = pathEl.getTotalLength();
+                                const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
+                                const x = pt.x;
+                                const y = pt.y;
+
+                                // token group
+                                const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                                gToken.setAttribute('transform', `translate(${x}, ${y})`);
+                                gToken.classList.add('token');
+
+                                // circle
+                                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                circle.setAttribute('r', '10');
+                                circle.classList.add('token-circle');
+                                gToken.appendChild(circle);
+
+                                // token value text (use first arg if present)
+                                const val = (instr.args && instr.args.length) ? instr.args[0] : '';
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                text.textContent = val;
+                                text.setAttribute('class', 'token-text');
+                                text.setAttribute('x', '0');
+                                text.setAttribute('y', '0');
+                                gToken.appendChild(text);
+
+                                const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
+                                target.appendChild(gToken);
+                                placed = true;
+                            }
+                        }
+                    });
+                }
+
+                // fallback: place token at node center if no outgoing edge or placement failed
+                if (!placed) {
+                    const ellipse = node.querySelector('ellipse, polygon, rect');
+                    if (ellipse) {
+                        const bbox = ellipse.getBBox();
+                        const cx = bbox.x + bbox.width / 2;
+                        const cy = bbox.y + bbox.height / 2;
+
+                        const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        gToken.setAttribute('transform', `translate(${cx}, ${cy})`);
+                        gToken.classList.add('token');
+
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('r', '10');
+                        circle.classList.add('token-circle');
+                        gToken.appendChild(circle);
+
+                        const val = (instr.args && instr.args.length) ? instr.args[0] : '';
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.textContent = val;
+                        text.setAttribute('class', 'token-text');
+                        text.setAttribute('x', '0');
+                        text.setAttribute('y', '0');
+                        gToken.appendChild(text);
+
+                        const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
+                        target.appendChild(gToken);
+                    }
                 }
             } else {
                 console.warn(`✗ No node found for instruction ID ${instr.instructionId} (${instr.instructionName})`);
@@ -506,6 +568,9 @@ class DataflowVisualizer {
         }
         
         const zoomGroup = svg.select('g');
+
+        // store a reference to the content group so tokens can be appended into it
+        this.contentGroup = zoomGroup.node();
         
         // Define zoom behavior
         this.zoom = d3.zoom()
@@ -540,20 +605,32 @@ class DataflowVisualizer {
             if (bounds.width === 0 || bounds.height === 0) return;
             
             // Calculate scale to fit with some padding
-            // Use more padding to account for UI panels around the edges
+            // Use slightly smaller padding and apply a small initial zoom-in factor
             const padding = 100;
-            const scale = Math.min(
+            const rawScale = Math.min(
                 (containerWidth - padding * 2) / bounds.width,
                 (containerHeight - padding * 2) / bounds.height
             );
+            // Apply an initial zoom-in multiplier to make the graph larger on first render
+            const maxScale = (this.zoom && this.zoom.scaleExtent) ? this.zoom.scaleExtent()[1] : 5;
+            let scale = rawScale * 4;
+            if (!isFinite(scale) || scale <= 0) scale = 1;
+            scale = Math.min(scale, maxScale);
             
             // Calculate centering translation
-            const tx = (containerWidth - bounds.width * scale) / 2 - bounds.x * scale;
-            const ty = (containerHeight - bounds.height * scale) / 2 - bounds.y * scale;
+            let tx = (containerWidth - bounds.width * scale) / 2 - bounds.x * scale;
+            let ty = (containerHeight - bounds.height * scale) / 2 - bounds.y * scale;
+
+            // Small manual offset to shift graph right and down to avoid clipping
+            const offsetX = 400; // pixels to move right
+            const offsetY = 700; // pixels to move down
+            tx += offsetX;
+            ty += offsetY;
             
             // Apply the transform
             const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
-            d3.select('#graph-container').call(this.zoom.transform, transform);
+            // Smooth transition to the fitted transform
+            d3.select('#graph-container').transition().duration(450).call(this.zoom.transform, transform);
         } catch (error) {
             console.warn('Could not fit graph to view:', error);
         }
@@ -582,13 +659,52 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Dataflow Token Visualizer initialized');
 });
 
-const fileUploadContainer = document.getElementById('fileUploadContainer');
-    const toggleUploadButton = document.getElementById('toggleUpload');
+// Attach drag & drop handlers for the centered upload modal
+document.addEventListener('DOMContentLoaded', () => {
+    const dotDrop = document.getElementById('dotDrop');
+    const fireDrop = document.getElementById('fireDrop');
+    const dotInput = document.getElementById('dotFile');
+    const fireInput = document.getElementById('fireLog');
+    const dotStatus = document.getElementById('dotStatus');
+    const fireStatus = document.getElementById('fireLogStatus');
 
-    toggleUploadButton.addEventListener('click', () => {
-        if (fileUploadContainer.style.display === 'none') {
-            fileUploadContainer.style.display = 'block';
-        } else {
-            fileUploadContainer.style.display = 'none';
-        }
-    });
+    if (!dotDrop || !fireDrop || !dotInput || !fireInput) return;
+
+    const prevent = (e) => { e.preventDefault(); e.stopPropagation(); };
+
+    function makeDrop(zone, inputEl, statusEl, handlerName) {
+        ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, (e) => { prevent(e); zone.classList.add('dragover'); }));
+        ['dragleave', 'dragexit', 'drop'].forEach(ev => zone.addEventListener(ev, (e) => { prevent(e); if (ev !== 'drop') zone.classList.remove('dragover'); }));
+
+        zone.addEventListener('drop', (e) => {
+            prevent(e);
+            zone.classList.remove('dragover');
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) {
+                // Call the visualizer file handler with a synthetic event
+                try {
+                    if (window.visualizer && typeof window.visualizer[handlerName] === 'function') {
+                        window.visualizer[handlerName]({ target: { files: [file] } });
+                    }
+                } catch (err) {
+                    console.error('Drop handler error:', err);
+                }
+
+                // Update visible status
+                if (statusEl) statusEl.textContent = `✓ Loaded: ${file.name}`;
+            }
+        });
+
+        // Click to open file picker
+        zone.addEventListener('click', () => inputEl.click());
+        // When input changes via picker, update status (the visualizer handler will be called by its own input listener)
+        inputEl.addEventListener('change', (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (f && statusEl) statusEl.textContent = `✓ Loaded: ${f.name}`;
+        });
+    }
+
+    makeDrop(dotDrop, dotInput, dotStatus, 'handleDotFile');
+    makeDrop(fireDrop, fireInput, fireStatus, 'handleFireLog');
+});
+
