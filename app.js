@@ -12,7 +12,10 @@ class DataflowVisualizer {
         this.playbackInterval = null;
         this.graphSvg = null;
         this.nodeMap = new Map(); // Map instruction ID to node element
+        this.nodeIdToName = new Map(); // Map instruction ID to node name (from DOT file)
         this.edgeMap = new Map(); // Map edge identifier to edge element
+        this.zoom = null; // D3 zoom behavior
+        this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         
         this.initializeEventListeners();
     }
@@ -38,6 +41,11 @@ class DataflowVisualizer {
                 this.play();
             }
         });
+
+        // Zoom control listeners
+        document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
+        document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
+        document.getElementById('zoomResetBtn').addEventListener('click', () => this.resetZoom());
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -175,6 +183,11 @@ class DataflowVisualizer {
         loadingMsg.textContent = 'Rendering graph...';
 
         try {
+            // Wait for @hpcc-js/wasm library to be available
+            if (!window["@hpcc-js/wasm"]) {
+                throw new Error("Graphviz WASM library not loaded. Please refresh the page.");
+            }
+            
             // Use @hpcc-js/wasm to render the DOT graph
             const graphviz = await window["@hpcc-js/wasm"].Graphviz.load();
             const svgString = graphviz.dot(this.dotContent);
@@ -188,7 +201,10 @@ class DataflowVisualizer {
             if (this.graphSvg) {
                 this.graphSvg.id = 'graph-svg';
                 this.graphSvg.style.width = '100%';
-                this.graphSvg.style.height = 'auto';
+                this.graphSvg.style.height = '100%';
+                
+                // Setup pan and zoom
+                this.setupZoom();
                 
                 // Build node and edge maps for faster lookup
                 this.buildNodeMap();
@@ -207,25 +223,32 @@ class DataflowVisualizer {
         // Find all nodes in the SVG and map them by their instruction ID
         // DOT format typically includes [ID:X] in the label
         this.nodeMap.clear();
+        this.nodeIdToName = new Map(); // Maps instruction ID to node name (from title element)
 
         if (!this.graphSvg) return;
 
         const nodes = this.graphSvg.querySelectorAll('g.node');
         nodes.forEach(node => {
+            // Get the node name from the title element (e.g., "dataflow_constant_1")
             const titleEl = node.querySelector('title');
-            if (titleEl) {
-                const titleText = titleEl.textContent;
-                // Try to extract ID from the title or label
-                const textEl = node.querySelector('text');
-                if (textEl) {
-                    const labelText = textEl.textContent;
-                    // Look for [ID:X] pattern in the label
-                    const idMatch = labelText.match(/\[ID:(\d+)\]/);
-                    if (idMatch) {
-                        const id = parseInt(idMatch[1]);
-                        this.nodeMap.set(id, node);
-                    }
+            const nodeName = titleEl ? titleEl.textContent.trim() : null;
+
+            // Collect all text content from the node (including tspan elements)
+            let allText = '';
+            const textElements = node.querySelectorAll('text, tspan');
+            textElements.forEach(textEl => {
+                allText += textEl.textContent + ' ';
+            });
+
+            // Look for [ID:X] pattern in all the collected text
+            const idMatch = allText.match(/\[ID:(\d+)\]/);
+            if (idMatch) {
+                const id = parseInt(idMatch[1]);
+                this.nodeMap.set(id, node);
+                if (nodeName) {
+                    this.nodeIdToName.set(id, nodeName);
                 }
+                console.log(`Mapped ID ${id} to node: ${nodeName}`);
             }
         });
 
@@ -400,10 +423,15 @@ class DataflowVisualizer {
     visualizeTokens(instructions) {
         if (!this.graphSvg) return;
 
+        console.log(`Visualizing ${instructions.length} instructions in cycle ${this.currentCycle}`);
+        
         instructions.forEach(instr => {
+            console.log(`Looking for instruction ID ${instr.instructionId} (${instr.instructionName})`);
+            
             // Highlight the node for this instruction
             const node = this.nodeMap.get(instr.instructionId);
             if (node) {
+                console.log(`✓ Found node for ID ${instr.instructionId}`);
                 // Highlight the entire node group
                 node.classList.add('highlight-node');
                 
@@ -422,6 +450,8 @@ class DataflowVisualizer {
                     
                     this.graphSvg.appendChild(token);
                 }
+            } else {
+                console.warn(`✗ No node found for instruction ID ${instr.instructionId} (${instr.instructionName})`);
             }
 
             // Try to highlight edges connected to this node
@@ -432,24 +462,117 @@ class DataflowVisualizer {
     }
 
     highlightConnectedEdges(instructionId) {
-        // Highlight edges connected to the given instruction
-        // This is a heuristic approach based on edge titles containing the node ID
+        // Highlight only output edges from the given instruction
+        // Edge titles are in format "nodeName1->nodeName2"
         if (!this.graphSvg) return;
+
+        // Get the node name for this instruction ID
+        const nodeName = this.nodeIdToName.get(instructionId);
+        if (!nodeName) {
+            console.log(`No node name found for instruction ID ${instructionId}`);
+            return;
+        }
 
         const edges = this.graphSvg.querySelectorAll('g.edge');
         edges.forEach(edge => {
             const titleEl = edge.querySelector('title');
             if (titleEl) {
-                const edgeTitle = titleEl.textContent;
-                // Check if the edge title contains references to this instruction
-                // Use word boundaries to avoid false matches (e.g., ID 1 matching 10, 11, etc.)
-                const idPattern = new RegExp(`\\b${instructionId}\\b|_${instructionId}_|_${instructionId}$|^${instructionId}_`);
-                if (idPattern.test(edgeTitle)) {
-                    // Apply class to the edge group, not just the path
+                const edgeTitle = titleEl.textContent.trim();
+                // Check if this edge starts from the node with the given name
+                // Edge format is "nodeName1->nodeName2"
+                if (edgeTitle.startsWith(nodeName + '->')) {
                     edge.classList.add('highlight-edge');
+                    console.log(`Highlighted edge: ${edgeTitle}`);
                 }
             }
         });
+    }
+
+    setupZoom() {
+        // Setup D3 zoom behavior for pan and zoom
+        const container = d3.select('#graph-container');
+        const svg = d3.select(this.graphSvg);
+        
+        // Create a group element to hold all graph content
+        const g = svg.select('g');
+        
+        // If there's no root group, create one and move all content into it
+        if (g.empty()) {
+            const allContent = svg.selectAll('*').remove();
+            const graphGroup = svg.append('g').attr('class', 'zoom-group');
+            allContent.each(function() {
+                graphGroup.node().appendChild(this);
+            });
+        }
+        
+        const zoomGroup = svg.select('g');
+        
+        // Define zoom behavior
+        this.zoom = d3.zoom()
+            .scaleExtent([0.1, 5]) // Min and max zoom levels
+            .on('zoom', (event) => {
+                this.currentTransform = event.transform;
+                zoomGroup.attr('transform', event.transform);
+            });
+        
+        // Apply zoom to the container (not the SVG directly)
+        container.call(this.zoom);
+        
+        // Set initial zoom to fit the content
+        this.fitToView();
+    }
+
+    fitToView() {
+        // Fit the graph to the viewport
+        if (!this.graphSvg || !this.zoom) return;
+        
+        const container = document.getElementById('graph-container');
+        const svg = this.graphSvg;
+        const g = svg.querySelector('g');
+        
+        if (!g) return;
+        
+        try {
+            const bounds = g.getBBox();
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            if (bounds.width === 0 || bounds.height === 0) return;
+            
+            // Calculate scale to fit with some padding
+            const padding = 50;
+            const scale = Math.min(
+                (containerWidth - padding * 2) / bounds.width,
+                (containerHeight - padding * 2) / bounds.height,
+                1 // Don't zoom in beyond 100%
+            );
+            
+            // Calculate centering translation
+            const tx = (containerWidth - bounds.width * scale) / 2 - bounds.x * scale;
+            const ty = (containerHeight - bounds.height * scale) / 2 - bounds.y * scale;
+            
+            // Apply the transform
+            const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+            d3.select('#graph-container').call(this.zoom.transform, transform);
+        } catch (error) {
+            console.warn('Could not fit graph to view:', error);
+        }
+    }
+
+    zoomIn() {
+        if (!this.zoom) return;
+        const container = d3.select('#graph-container');
+        container.transition().duration(300).call(this.zoom.scaleBy, 1.3);
+    }
+
+    zoomOut() {
+        if (!this.zoom) return;
+        const container = d3.select('#graph-container');
+        container.transition().duration(300).call(this.zoom.scaleBy, 0.7);
+    }
+
+    resetZoom() {
+        this.fitToView();
     }
 }
 
