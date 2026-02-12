@@ -38,6 +38,40 @@ class DataflowVisualizer {
                 this.play();
             }
         });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!this.dotContent || !this.fireLogData.length) return;
+            
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    if (this.isPlaying) {
+                        this.pause();
+                    } else {
+                        this.play();
+                    }
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    this.previousCycle();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    this.nextCycle();
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    this.reset();
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
+                    this.currentCycle = maxCycle;
+                    this.updateVisualization();
+                    break;
+            }
+        });
     }
 
     async handleDotFile(event) {
@@ -297,6 +331,9 @@ class DataflowVisualizer {
         
         // Get instructions for current cycle
         const instructions = this.cycleData.get(this.currentCycle) || [];
+        
+        // Update instruction count
+        document.getElementById('cycleInstrCount').textContent = instructions.length;
         
         // Update execution log
         this.updateExecutionLog(instructions);

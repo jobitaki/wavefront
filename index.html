@@ -196,6 +196,11 @@
             background: #fafafa;
             overflow: auto;
             position: relative;
+            cursor: grab;
+        }
+
+        #graph-container:active {
+            cursor: grabbing;
         }
 
         #graph-svg {
@@ -207,24 +212,39 @@
         .token {
             fill: #ff4444;
             stroke: #cc0000;
-            stroke-width: 2;
-            filter: drop-shadow(0 0 5px rgba(255, 68, 68, 0.8));
-            animation: pulse 0.5s ease-in-out infinite;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 8px rgba(255, 68, 68, 1)) drop-shadow(0 0 15px rgba(255, 68, 68, 0.6));
+            animation: pulse 1s ease-in-out infinite;
         }
 
         @keyframes pulse {
-            0%, 100% { r: 8; }
-            50% { r: 10; }
+            0%, 100% { 
+                r: 10; 
+                opacity: 1;
+            }
+            50% { 
+                r: 14; 
+                opacity: 0.8;
+            }
         }
 
         .highlight-node {
-            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.9));
+            filter: drop-shadow(0 0 15px rgba(255, 215, 0, 1)) drop-shadow(0 0 25px rgba(255, 165, 0, 0.8));
         }
 
-        .highlight-edge {
-            stroke: #ffd700 !important;
+        .highlight-node ellipse,
+        .highlight-node polygon,
+        .highlight-node rect,
+        .highlight-node circle {
+            fill: #fff4e6 !important;
+            stroke: #ff8c00 !important;
             stroke-width: 4 !important;
-            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.8));
+        }
+
+        .highlight-edge path {
+            stroke: #ffd700 !important;
+            stroke-width: 5 !important;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.9));
         }
 
         .instructions-panel {
@@ -359,6 +379,7 @@
                 <button class="btn-secondary" id="resetBtn" disabled>⏮ Reset</button>
                 <div class="cycle-info">
                     <span class="cycle-display">Cycle: <span id="currentCycle">0</span></span>
+                    <span class="cycle-display" style="margin-left: 20px;">Instructions: <span id="cycleInstrCount">0</span></span>
                 </div>
                 <div class="speed-control">
                     <label for="speedSlider">Speed:</label>
@@ -389,6 +410,14 @@
                 <li><strong>Playback Controls:</strong> Use the play button to start the cycle-by-cycle animation, or use step buttons to move through cycles manually.</li>
                 <li><strong>Watch Tokens:</strong> Red animated tokens will appear on edges showing instruction execution. Highlighted nodes indicate active instructions in the current cycle.</li>
                 <li><strong>Execution Log:</strong> The log panel shows all instructions executed in the current cycle with their arguments.</li>
+                <li><strong>Keyboard Shortcuts:</strong> 
+                    <ul style="margin-top: 5px;">
+                        <li><code>Space</code> - Play/Pause</li>
+                        <li><code>←/→</code> - Previous/Next cycle</li>
+                        <li><code>Home</code> - Reset to first cycle</li>
+                        <li><code>End</code> - Jump to last cycle</li>
+                    </ul>
+                </li>
             </ol>
         </div>
     </div>
