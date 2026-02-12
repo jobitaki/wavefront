@@ -1,0 +1,137 @@
+═══════════════════════════════════════════════════════════════════════════════
+FIRE.LOG TO DOT PORT ANNOTATION MAPPING - QUICK REFERENCE
+═══════════════════════════════════════════════════════════════════════════════
+
+GENERAL PRINCIPLE:
+  res[n] = Output port n of current instruction
+  op[n]  = Input port n of current instruction (operand from instruction inputs array)
+  
+Fire.log arguments logged in order correspond to specific op[n] and res[n] indices
+based on the instruction's gatherInput() and return statement order.
+
+═══════════════════════════════════════════════════════════════════════════════
+BY INSTRUCTION CATEGORY
+═══════════════════════════════════════════════════════════════════════════════
+
+[ARITHMETIC & LOGIC]
+  add, sub, mul, div, and, or, xor, shl, ashr, lshr, cmpi, min, max
+  Log: op[0] op[1] res[0]
+  Example: [5] (22) mul 0 4 0       → op[0]=0, op[1]=4, res[0]=0
+
+[UNARY OPERATIONS]
+  neg, abs, extsi, extui, trunci, fptoui, fptosi, sitofp, uitofp, fneg
+  Log: op[0] res[0]
+  Example: [5] (51) extsi_2 0 0     → op[0]=0, res[0]=0
+
+[CONSTANTS & PASSTHROUGH]
+  dataflow.constant, dataflow.copy, bitcast, freeze, ptrtoint, inttoptr
+  Log: res[0]
+  Example: [2] (0) c0 0             → res[0]=0
+
+[STEER INSTRUCTIONS]
+  trueSteer, falseSteer, dataflow.steer
+  Log: op[0] op[1] res[0]
+  Example: [3] (14) true_steer_4 true 2 true
+           → op[0]=true(decider), op[1]=2(data), res[0]=0(channel)
+
+[MEMORY - LOAD]
+  dataflow.load, dataflow.loadIndex
+  Load:      op[0]=address
+  LoadIndex: op[0]=base, op[1]=offset
+  Log format: op[0] [op[1]] computed_addr res[0]
+  Example: [n] (id) load 2000 2000 0x12345678
+           → op[0]=2000, res[0]=0x12345678
+
+[MEMORY - STORE]
+  dataflow.store, dataflow.storeIndex
+  Store:      inputs=[data, address, order] → Log: op[1] addr op[0]  ⚠️ REVERSED!
+  StoreIndex: inputs=[base, offset, data, order] → Log: op[0] op[1] addr op[2]
+  
+  Example store: [n] (id) store 2000 2000 12345
+                 → op[1]=2000(address), op[0]=12345(data)
+  Example storeIndex: [78] (53) storeIndex 168 3 192 7310
+                      → op[0]=168, op[1]=3, op[2]=7310
+
+[ROUTING - SEND]
+  dataflow.send
+  Log: "FAR SEND" op[0] op[1]
+  Example: [3] (57) send FAR SEND 58 0
+           → op[0]=58(dest_id), op[1]=0(value)
+
+[RIPTIDE - CARRY]
+  riptide.carry
+  inputs: [condition, data1, data2, state]
+  
+  INIT→BLOCK: Log "INIT->BLOCK" res[0]
+  BLOCK→BLOCK: Log "BLOCK->BLOCK" res[0]
+  BLOCK→INIT: Log "BLOCK->INIT"
+  
+  Example: [2] (5) carry INIT->BLOCK 0
+           → res[0]=0(data), res[1]=BLOCKED(state)
+
+[RIPTIDE - INVARIANT]
+  riptide.invariant
+  inputs: [condition, data, state]
+  Log: op[2] res[0]_or_0
+  Example: [5] (25) invariant 0 0
+           → op[2]=0(state), then conditional data or 0
+
+[RIPTIDE - STREAM]
+  riptide.stream
+  inputs: [start, bound, step] (offset implicit)
+  outputs: [res[0]=loop_val, res[1]=last, res[2]=next_offset]
+  Log: res[1] op[0] op[1] op[2] offset
+  Example: [3] (4) stream false 0 4 1 0
+           → res[1]=false(last), op[0]=0(start), op[1]=4(bound), 
+             op[2]=1(step), offset=0
+
+[RIPTIDE - MERGE]
+  dataflow.merge (RT version - takes condition)
+  Log: res[0]
+  Example: [78] (54) merge 1
+           → res[0]=1 (from either op[1] or op[2] based on condition)
+
+[TTDA - TAG OPERATIONS]
+  ttda.get_context: Log res[0]
+  ttda.extract_tag: Log res[0]
+  ttda.change_tag: Log op[0] op[1]
+  ttda.free_tag: Log op[0]
+  ttda.merge: Log "EXTERNAL"/"INTERNAL" res[0]
+
+═══════════════════════════════════════════════════════════════════════════════
+HOW TO USE THIS MAPPING
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Find instruction in fire.log: [cycle] (id) name arg1 arg2 arg3 ...
+2. Look up instruction type in category above
+3. Map each argument to corresponding op[n] or res[n]
+4. Cross-reference with YAML:
+   - YAML "inputs" array: position i → op[i]
+   - YAML "outputs" array: position j → res[j]
+5. In DOT graph, annotations show res[n]→op[n] on edges between instructions
+
+Example trace:
+  YAML shows: id=22, op=arith.muli, inputs=[0,11], outputs=[{consumer_id:48, oport:0, iport:2}]
+  fire.log shows: [5] (22) mul 0 4 0
+  Mapping: op[0]=0(from instr 0), op[1]=4(from instr 11), res[0]=0
+  DOT edge: instr_22 → instr_48 with label res[0]→op[2]
+
+═══════════════════════════════════════════════════════════════════════════════
+SPECIAL NOTES
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  Store instruction logs ADDRESS FIRST, then DATA (reversed from operand order!)
+    YAML: inputs=[data, address, order]
+    Log:  address computed_addr data
+    So: arg1=op[1], arg3=op[0]
+
+⚠️  Carry/Invariant use state (op[3]/op[2]) but may not explicitly log it
+    Check instruction name for "INIT->BLOCK", "BLOCK->BLOCK", "BLOCK->INIT"
+
+⚠️  Stream logs result[1] (last flag) FIRST, not result[0] (loop value)
+    Log format: last start bound step offset
+    Maps to: res[1]=last, op[0]=start, op[1]=bound, op[2]=step
+
+⚠️  Load/Store have implicit res[1]=status (always 0 for load, 1 for store)
+    Only res[0] is explicitly logged
+
