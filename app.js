@@ -122,6 +122,8 @@ class DataflowVisualizer {
 
     parseFireLog(content) {
         // Parse fire.log format: [cycle] (instruction_id) instruction_name [args...]
+        // Note: Arguments are split on whitespace. If arguments contain spaces,
+        // they will be split into multiple elements. This matches the fire.log format.
         const lines = content.trim().split('\n');
         this.fireLogData = [];
         this.cycleData.clear();
@@ -440,13 +442,11 @@ class DataflowVisualizer {
             if (titleEl) {
                 const edgeTitle = titleEl.textContent;
                 // Check if the edge title contains references to this instruction
-                // Common patterns might be "node_X->node_Y" or similar
-                if (edgeTitle.includes(`_${instructionId}`) || 
-                    edgeTitle.includes(`${instructionId}_`)) {
-                    const pathEl = edge.querySelector('path');
-                    if (pathEl) {
-                        pathEl.classList.add('highlight-edge');
-                    }
+                // Use word boundaries to avoid false matches (e.g., ID 1 matching 10, 11, etc.)
+                const idPattern = new RegExp(`\\b${instructionId}\\b|_${instructionId}_|_${instructionId}$|^${instructionId}_`);
+                if (idPattern.test(edgeTitle)) {
+                    // Apply class to the edge group, not just the path
+                    edge.classList.add('highlight-edge');
                 }
             }
         });

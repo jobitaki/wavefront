@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dataflow Token Visualizer</title>
-    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm/dist/graphviz.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <!-- Graphviz WASM library for rendering DOT graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/@hpcc-js/wasm@2.5.0/dist/graphviz.umd.js" 
+            integrity="sha384-FIfa9zjRpJYPW2+ma9JLdPVoaSI6pPcE5eQKe3jPK5b7T4fC0Ut7uVKHPsVHZc3p" 
+            crossorigin="anonymous"></script>
+    <!-- D3.js for SVG manipulation utilities -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.5/dist/d3.min.js" 
+            integrity="sha384-ux6q/ndLq18gV4TmzJ7nIX7FNyD4vEb5A8X1sCq0WqhAVvqq9jk3H7P2zUpKHOvj" 
+            crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -245,6 +251,11 @@
             stroke: #ffd700 !important;
             stroke-width: 5 !important;
             filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.9));
+        }
+
+        .highlight-edge polygon {
+            stroke: #ffd700 !important;
+            fill: #ffd700 !important;
         }
 
         .instructions-panel {

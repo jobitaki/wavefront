@@ -49,6 +49,14 @@ This visualizer helps you understand program execution by showing:
 - **⏮ Reset**: Reset to cycle 0
 - **Speed Slider**: Adjust playback speed (1x - 10x)
 
+### Keyboard Shortcuts
+
+- **Space**: Play/Pause toggle
+- **← (Left Arrow)**: Previous cycle
+- **→ (Right Arrow)**: Next cycle
+- **Home**: Reset to first cycle (cycle 0)
+- **End**: Jump to last cycle
+
 ### Understanding the Visualization
 
 - **Highlighted Nodes**: Nodes that glow indicate instructions executing in the current cycle
