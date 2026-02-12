@@ -9,9 +9,9 @@ Thumbs.db
 *.swo
 *~
 
-# Logs
-*.log
+# Logs (but not example logs)
 npm-debug.log*
+debug.log
 
 # Temporary files
 /tmp/
