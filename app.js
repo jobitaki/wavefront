@@ -15,6 +15,8 @@ class DataflowVisualizer {
         this.nodeIdToName = new Map(); // Map instruction ID to node name (from DOT file)
         this.edgeMap = new Map(); // Map edge identifier to edge element
         this.edgesBySource = new Map(); // NEW: for fast edge lookup by source node
+        this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
+        this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default for performance)
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         
@@ -69,6 +71,9 @@ class DataflowVisualizer {
         document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
         document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
         document.getElementById('zoomResetBtn').addEventListener('click', () => this.resetZoom());
+
+        // Queue visualization toggle
+        document.getElementById('queueToggleBtn').addEventListener('change', (e) => this.toggleQueueVisualization(e.target.checked));
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -370,14 +375,155 @@ class DataflowVisualizer {
     reset() {
         this.pause();
         this.currentCycle = 0;
+        // Clear all queued tokens
+        if (this.graphSvg) {
+            this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+        }
+        this.queuedTokens.clear();
         this.updateVisualization();
     }
 
     previousCycle() {
         if (this.currentCycle > 0) {
             this.currentCycle--;
+            // Rebuild queue state from scratch by replaying from cycle 0
+            if (this.queueVisualizationEnabled) {
+                this.replayToCurrentCycle();
+            } else {
+                this.updateVisualization();
+            }
+        }
+    }
+
+    replayToCurrentCycle() {
+        // Clear all queued tokens and rebuild by replaying
+        if (this.graphSvg) {
+            this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+        }
+        this.queuedTokens.clear();
+        
+        // Replay cycles 0 through currentCycle-1 silently
+        for (let cycle = 0; cycle < this.currentCycle; cycle++) {
+            const instructions = this.cycleData.get(cycle) || [];
+            this.processInstructionsForQueues(instructions);
+        }
+        
+        // Display current cycle normally
+        this.updateVisualization();
+    }
+
+    toggleQueueVisualization(checked) {
+        this.queueVisualizationEnabled = checked;
+        if (this.queueVisualizationEnabled) {
+            // Rebuild queues from cycle 0 to current
+            this.replayToCurrentCycle();
+        } else {
+            // Clear all queued tokens
+            if (this.graphSvg) {
+                this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+            }
+            this.queuedTokens.clear();
             this.updateVisualization();
         }
+    }
+
+    // Process queue state updates without rendering (for silent replay)
+    processInstructionsForQueues(instructions) {
+        if (!this.queueVisualizationEnabled) return;
+
+        instructions.forEach(instr => {
+            const node = this.nodeMap.get(instr.instructionId);
+            if (!node) return;
+
+            const nodeName = this.nodeIdToName.get(instr.instructionId);
+            if (!nodeName) return;
+
+            // Pop the head of each input queue when instruction fires
+            if (this.queuedTokens.has(nodeName)) {
+                const inputQueues = this.queuedTokens.get(nodeName);
+                inputQueues.forEach((queueData, key) => {
+                    if (queueData.tokens && queueData.tokens.length > 0) {
+                        // Pop the head (FIFO)
+                        const head = queueData.tokens.shift();
+                        try { if (head && head.remove) head.remove(); } catch (e) {}
+                        
+                        // Reposition remaining tokens
+                        queueData.tokens.forEach((tok, idx) => {
+                            const offset = idx * 18;
+                            tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
+                        });
+                    }
+                    // Clean up empty queues
+                    if (!queueData.tokens || queueData.tokens.length === 0) {
+                        inputQueues.delete(key);
+                    }
+                });
+                if (inputQueues.size === 0) this.queuedTokens.delete(nodeName);
+            }
+
+            // Produce new tokens at outputs
+            const relevantEdges = this.edgesBySource.get(nodeName) || [];
+            relevantEdges.forEach(edge => {
+                const titleEl = edge.querySelector('title');
+                if (!titleEl) return;
+                
+                const edgeTitle = titleEl.textContent.trim();
+                const labelEl = edge.querySelector('text');
+                const edgeLabel = labelEl ? labelEl.textContent.trim() : '';
+                const pathEl = edge.querySelector('path');
+                
+                if (pathEl && pathEl.getTotalLength) {
+                    const L = pathEl.getTotalLength();
+                    const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
+                    const x = pt.x;
+                    const y = pt.y;
+                    
+                    const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                    const val = this._getResValueForIndex(instr, resIndex);
+                    
+                    if (val !== null && val !== undefined) {
+                        const targetMatch = edgeTitle.match(/->\s*([^:\s]+)/);
+                        const targetName = targetMatch ? targetMatch[1] : null;
+                        let targetInputIdx = null;
+                        const opMatch = edgeLabel.match(/op\[(\d+)\]/);
+                        if (opMatch) targetInputIdx = parseInt(opMatch[1], 10);
+                        if (targetInputIdx === null) targetInputIdx = resIndex;
+
+                        if (targetName) {
+                            // Enqueue token
+                            if (!this.queuedTokens.has(targetName)) {
+                                this.queuedTokens.set(targetName, new Map());
+                            }
+                            const inputQueues = this.queuedTokens.get(targetName);
+                            const key = String(targetInputIdx);
+                            
+                            if (!inputQueues.has(key)) {
+                                inputQueues.set(key, { baseX: x, baseY: y, tokens: [] });
+                            }
+                            const queueData = inputQueues.get(key);
+                            
+                            // Update base position to current edge endpoint and reposition existing tokens
+                            queueData.baseX = x;
+                            queueData.baseY = y;
+                            queueData.tokens.forEach((tok, idx) => {
+                                const offset = idx * 18;
+                                tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
+                            });
+                            
+                            const stackIdx = queueData.tokens.length;
+                            const offset = stackIdx * 18;
+                            const sx = queueData.baseX;
+                            const sy = queueData.baseY - offset;
+                            
+                            const gToken = this._createTokenElement(sx, sy, val);
+                            gToken.classList.add('queued-token');
+                            this.contentGroup.appendChild(gToken);
+                            queueData.tokens.push(gToken);
+                        }
+                    }
+                }
+            });
+        });
     }
 
     nextCycle() {
@@ -410,16 +556,17 @@ class DataflowVisualizer {
     clearHighlights() {
         if (!this.graphSvg) return;
         
-        // Batch class removal for better performance
-        this.graphSvg.querySelectorAll('.highlight-node, .highlight-edge, .token')
-            .forEach(el => {
-                if (el.classList.contains('token')) {
-                    el.remove();
-                } else {
-                    // Remove highlight classes efficiently
-                    el.classList.remove('highlight-node', 'highlight-edge');
-                }
-            });
+        // Remove highlights
+        this.graphSvg.querySelectorAll('.highlight-node, .highlight-edge').forEach(el => {
+            el.classList.remove('highlight-node', 'highlight-edge');
+        });
+
+        // Remove only transient tokens (queued tokens persist)
+        this.graphSvg.querySelectorAll('.token').forEach(el => {
+            if (!el.classList.contains('queued-token')) {
+                el.remove();
+            }
+        });
     }
 
     updateExecutionLog(instructions) {
@@ -469,10 +616,37 @@ class DataflowVisualizer {
             // Highlight the node for this instruction
             const node = this.nodeMap.get(instr.instructionId);
             if (node) {
+                const nodeName = this.nodeIdToName.get(instr.instructionId);
+
+                // Only process queues if queue visualization is enabled
+                if (this.queueVisualizationEnabled) {
+                    // When instruction fires, pop the head of each input queue and reposition remaining
+                    if (nodeName && this.queuedTokens.has(nodeName)) {
+                        const inputQueues = this.queuedTokens.get(nodeName);
+                        inputQueues.forEach((queueData, key) => {
+                            if (queueData.tokens && queueData.tokens.length > 0) {
+                                // Pop the head (FIFO)
+                                const head = queueData.tokens.shift();
+                                try { if (head && head.remove) head.remove(); } catch (e) {}
+                                
+                                // Reposition remaining tokens so they shift down (stay anchored)
+                                queueData.tokens.forEach((tok, idx) => {
+                                    const offset = idx * 18; // 18px vertical spacing
+                                    tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
+                                });
+                            }
+                            // Clean up empty queues
+                            if (!queueData.tokens || queueData.tokens.length === 0) {
+                                inputQueues.delete(key);
+                            }
+                        });
+                        if (inputQueues.size === 0) this.queuedTokens.delete(nodeName);
+                    }
+                }
+
                 node.classList.add('highlight-node');
                 
                 // Place tokens at the end of outgoing edges
-                const nodeName = this.nodeIdToName.get(instr.instructionId);
                 let placed = false;
                 
                 if (nodeName) {
@@ -484,6 +658,9 @@ class DataflowVisualizer {
                         if (!titleEl) return;
                         
                         const edgeTitle = titleEl.textContent.trim();
+                        // Get the edge label text which contains res[X]→op[Y]
+                        const labelEl = edge.querySelector('text');
+                        const edgeLabel = labelEl ? labelEl.textContent.trim() : '';
                         const pathEl = edge.querySelector('path');
                         
                         if (pathEl && pathEl.getTotalLength) {
@@ -496,10 +673,55 @@ class DataflowVisualizer {
                             const val = this._getResValueForIndex(instr, resIndex);
                             
                             if (val !== null && val !== undefined) {
-                                // Create token element and add to fragment
-                                const gToken = this._createTokenElement(x, y, val);
-                                fragment.appendChild(gToken);
-                                placed = true;
+                                // Extract target node name and input index from edge title and label
+                                const targetMatch = edgeTitle.match(/->\s*([^:\s]+)/);
+                                const targetName = targetMatch ? targetMatch[1] : null;
+                                // Extract op[Y] from the edge label (which has format res[X]→op[Y])
+                                let targetInputIdx = null;
+                                const opMatch = edgeLabel.match(/op\[(\d+)\]/);
+                                if (opMatch) targetInputIdx = parseInt(opMatch[1], 10);
+                                // Fallback: use source output index as guess
+                                if (targetInputIdx === null) targetInputIdx = resIndex;
+
+                                if (this.queueVisualizationEnabled && targetName) {
+                                    // Enqueue token at target node input (anchored position)
+                                    if (!this.queuedTokens.has(targetName)) {
+                                        this.queuedTokens.set(targetName, new Map());
+                                    }
+                                    const inputQueues = this.queuedTokens.get(targetName);
+                                    const key = String(targetInputIdx);
+                                    
+                                    if (!inputQueues.has(key)) {
+                                        inputQueues.set(key, { baseX: x, baseY: y, tokens: [] });
+                                    }
+                                    const queueData = inputQueues.get(key);
+                                    
+                                    // Update base position to current edge endpoint and reposition existing tokens
+                                    queueData.baseX = x;
+                                    queueData.baseY = y;
+                                    queueData.tokens.forEach((tok, idx) => {
+                                        const offset = idx * 18;
+                                        tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
+                                    });
+                                    
+                                    // Stack position: index * spacing from base
+                                    const stackIdx = queueData.tokens.length;
+                                    const offset = stackIdx * 18; // vertical spacing
+                                    const sx = queueData.baseX;
+                                    const sy = queueData.baseY - offset;
+                                    
+                                    const gToken = this._createTokenElement(sx, sy, val);
+                                    gToken.classList.add('queued-token');
+                                    fragment.appendChild(gToken);
+                                    queueData.tokens.push(gToken);
+                                    placed = true;
+                                } else {
+                                    // Fallback: transient token at edge endpoint
+                                    const gToken = this._createTokenElement(x, y, val);
+                                    gToken.classList.add('transient-token');
+                                    fragment.appendChild(gToken);
+                                    placed = true;
+                                }
                             }
                         }
                     });
@@ -515,6 +737,7 @@ class DataflowVisualizer {
 
                         const val = (instr.args && instr.args.length) ? instr.args[0] : '';
                         const gToken = this._createTokenElement(cx, cy, val);
+                        gToken.classList.add('transient-token');
                         fragment.appendChild(gToken);
                     }
                 }
