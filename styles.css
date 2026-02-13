@@ -436,10 +436,6 @@ button:disabled {
 }
 
 /* Base styles for graph elements - hardware acceleration hints */
-g.node, g.edge {
-    will-change: auto;
-}
-
 g.node ellipse,
 g.node polygon,
 g.node rect,
@@ -451,8 +447,8 @@ g.edge polygon {
 
 .highlight-node {
     filter: drop-shadow(0 0 15px rgba(255, 215, 0, 1)) drop-shadow(0 0 25px rgba(255, 165, 0, 0.8));
-    transition: filter 0.2s ease, opacity 0.2s ease;
-    will-change: filter, opacity;
+    transition: opacity 0.2s ease;
+    will-change: opacity;
 }
 
 .highlight-node ellipse,
@@ -469,7 +465,7 @@ g.edge polygon {
     stroke: #ffd700 !important;
     stroke-width: 5 !important;
     filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.9));
-    transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+    transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
     will-change: opacity, stroke, stroke-width;
 }
 

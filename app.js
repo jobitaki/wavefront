@@ -399,10 +399,15 @@ class DataflowVisualizer {
         // Remove all highlight classes and tokens
         if (!this.graphSvg) return;
 
-        // Use single query and class removal for better performance
-        const highlightedElements = this.graphSvg.querySelectorAll('.highlight-node, .highlight-edge');
-        highlightedElements.forEach(el => {
-            el.classList.remove('highlight-node', 'highlight-edge');
+        // Remove highlight classes separately for accuracy
+        const highlightedNodes = this.graphSvg.querySelectorAll('.highlight-node');
+        highlightedNodes.forEach(el => {
+            el.classList.remove('highlight-node');
+        });
+
+        const highlightedEdges = this.graphSvg.querySelectorAll('.highlight-edge');
+        highlightedEdges.forEach(el => {
+            el.classList.remove('highlight-edge');
         });
 
         const tokens = this.graphSvg.querySelectorAll('.token');
