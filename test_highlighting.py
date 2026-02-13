@@ -94,9 +94,9 @@ def test_example_file_parsing():
         
         print(f"✓ Parsed example file: {len(nodes)} nodes, {len(edges)} edges")
         
-        # Extract some node IDs
+        # Extract node IDs from all nodes
         node_ids = []
-        for node in nodes:  # Check all nodes
+        for node in nodes:
             title = node.find('svg:title', ns)
             if title is not None:
                 node_name = title.text.strip()
