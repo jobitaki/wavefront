@@ -199,6 +199,10 @@ class DataflowVisualizer {
             container.classList.add('has-graph');
             if (loadingMsg) loadingMsg.style.display = 'none';
 
+            // Show zoom controls now that the graph is rendered
+            const zoomControls = document.querySelector('.zoom-controls');
+            if (zoomControls) zoomControls.classList.add('visible');
+
             // Get the actual SVG element that was created
             this.graphSvg = container.querySelector('svg');
             if (this.graphSvg) {
@@ -446,7 +450,7 @@ class DataflowVisualizer {
                         const titleEl = edge.querySelector('title');
                         if (!titleEl) return;
                         const edgeTitle = titleEl.textContent.trim();
-                        if (edgeTitle.startsWith(nodeName + '->')) {
+                        if (edgeTitle.startsWith(nodeName + '->') || edgeTitle.startsWith(nodeName + ':') || edgeTitle.includes(nodeName+" ")) {
                             // try to get the path end point
                             const pathEl = edge.querySelector('path');
                             if (pathEl && pathEl.getTotalLength) {
@@ -454,30 +458,33 @@ class DataflowVisualizer {
                                 const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
                                 const x = pt.x;
                                 const y = pt.y;
+                                // determine which res index this edge corresponds to (if any)
+                                const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                                const val = this._getResValueForIndex(instr, resIndex);
+                                if (val !== null && val !== undefined) {
+                                    // token group
+                                    const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                                    gToken.setAttribute('transform', `translate(${x}, ${y})`);
+                                    gToken.classList.add('token');
 
-                                // token group
-                                const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                                gToken.setAttribute('transform', `translate(${x}, ${y})`);
-                                gToken.classList.add('token');
+                                    // circle
+                                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                    circle.setAttribute('r', '10');
+                                    circle.classList.add('token-circle');
+                                    gToken.appendChild(circle);
 
-                                // circle
-                                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                                circle.setAttribute('r', '10');
-                                circle.classList.add('token-circle');
-                                gToken.appendChild(circle);
+                                    // token value text
+                                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                    text.textContent = String(val);
+                                    text.setAttribute('class', 'token-text');
+                                    text.setAttribute('x', '0');
+                                    text.setAttribute('y', '0');
+                                    gToken.appendChild(text);
 
-                                // token value text (use first arg if present)
-                                const val = (instr.args && instr.args.length) ? instr.args[0] : '';
-                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                text.textContent = val;
-                                text.setAttribute('class', 'token-text');
-                                text.setAttribute('x', '0');
-                                text.setAttribute('y', '0');
-                                gToken.appendChild(text);
-
-                                const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
-                                target.appendChild(gToken);
-                                placed = true;
+                                    const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
+                                    target.appendChild(gToken);
+                                    placed = true;
+                                }
                             }
                         }
                     });
@@ -548,6 +555,135 @@ class DataflowVisualizer {
                 }
             }
         });
+    }
+
+    // Try to extract res index from an edge title. Edge titles vary; attempt several patterns.
+    _extractResIndexFromEdgeTitle(edgeTitle, nodeName) {
+        // Robust extraction of res index from edge title.
+        // Preferred pattern: res[<i>]→op[<j>]  (arrow may be Unicode → or ASCII ->)
+        // Fallbacks: nodeName:res<i>, :res<i>, res<i>, or op[<j>] alone.
+        if (!edgeTitle || typeof edgeTitle !== 'string') return 0;
+
+        // Primary: res[<i>] → op[<j>]
+        let m = edgeTitle.match(/res\[(\d+)\]\s*(?:→|->)\s*op\[(\d+)\]/);
+        if (m) return parseInt(m[1], 10);
+
+        // Try nodeName:res<k> or nodeName:res[<k>]
+        try {
+            const nodeRegex = new RegExp(nodeName.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&') + '\\s*[:\\)]\\s*res\[?(\\d+)\]?');
+            m = edgeTitle.match(nodeRegex);
+            if (m) return parseInt(m[1], 10);
+        } catch (e) {
+            // If nodeName contains regex-significant chars, skip this specific check
+        }
+
+        // Generic res[...] or :res<number> or res<number>
+        m = edgeTitle.match(/:?\s*res\[?(\d+)\]?/);
+        if (m) return parseInt(m[1], 10);
+
+        // If only op[<j>] is present, use op index as a heuristic for res index
+        m = edgeTitle.match(/op\[(\d+)\]/);
+        if (m) return parseInt(m[1], 10);
+
+        // As a last resort, default to 0
+        return 0;
+    }
+
+    // Given a parsed fire.log instruction entry and a res index, return the value for that res index.
+    _getResValueForIndex(instr, resIndex) {
+        if (!instr || !instr.instructionName) return null;
+        const name = instr.instructionName.toLowerCase();
+        const args = instr.args || [];
+
+        // Helper: safe index
+        const at = (i) => (i >= 0 && i < args.length) ? args[i] : null;
+
+        // Carry / riptide special cases: some lines encode state transitions as first arg
+        if (name.includes('carry')) {
+            // Examples: "INIT->BLOCK 123" or "BLOCK->INIT"
+            if (args.length === 0) return null;
+            if (typeof args[0] === 'string' && args[0].includes('->')) {
+                // If transition label present and followed by a value, value is likely next arg
+                if (args.length >= 2 && !isNaN(Number(args[1]))) {
+                    // these logs use args[1] as res[0]
+                    return resIndex === 0 ? args[1] : null;
+                }
+                // BLOCK->INIT has no data output
+                return null;
+            }
+        }
+
+        // Stream instructions (e.g., riptide.stream): often produce multiple outputs
+        // Typical outputs: res[0] = data value, res[1] = predicate/flag
+        if (name.includes('stream')) {
+            if (!args || args.length === 0) return null;
+            const v = at(resIndex);
+            return v !== null ? v : null;
+        }
+
+        // Binary arithmetic and comparisons: op0 op1 res0
+        if (/(add|sub|mul|div|rem|and_|or_|xor|shl|ashr|lshr|^add$|and$|or$|xor$|shl$|ashr$|lshr$|eq$|ne$|lt$|gt$|le$|ge$)/.test(name)) {
+            return resIndex === 0 ? at(2) : null;
+        }
+
+        // Bitwise and similar use same format
+        if (/(and|or|xor|shl|ashr|lshr)/.test(name)) {
+            return resIndex === 0 ? at(2) : null;
+        }
+
+        // Type conversions: op0 res0
+        if (/(extsi|extui|trunci|fptoui|fptosi|sitofp|uitofp|abs|neg)/.test(name)) {
+            return resIndex === 0 ? at(1) : null;
+        }
+
+        // Constants / passthrough: res0 only
+        if (/(constant|c0|copy|dataflow\.constant|dataflow.copy|bitcast|freeze)/.test(name)) {
+            return resIndex === 0 ? at(0) : null;
+        }
+
+        // Steer instructions
+        if (name.includes('steer')) {
+            // dataflow.steer: args: decider, data, channel_output
+            if (args.length >= 3) {
+                const channel = Number(at(2));
+                const data = at(1);
+                return (resIndex === channel) ? data : null;
+            }
+            // true/false steer (1-output): args: decider, data, condition_met
+            if (args.length >= 3) {
+                const fired = String(at(2)) !== '0' && String(at(2)).toLowerCase() !== 'false';
+                return (resIndex === 0 && fired) ? at(1) : null;
+            }
+        }
+
+        // LoadIndex: op0 op1 computed_addr res0_loaded_data (res0 at index 3)
+        if (name.includes('loadindex') || name.includes('loadindex')) {
+            return resIndex === 0 ? at(3) : null;
+        }
+        // Load: op0 ? res0 at index 2
+        if (name === 'load' || name.includes('load')) {
+            return resIndex === 0 ? at(2) : null;
+        }
+
+        // Store / storeIndex generally don't emit data tokens (res=1 status), skip
+        if (name.includes('store')) {
+            return null;
+        }
+
+        // Send: no res
+        if (name.includes('send')) return null;
+
+        // Stream / riptide.merge etc. handle some patterns
+        if (name.includes('merge') && args.length >= 1) {
+            return resIndex === 0 ? at(0) : null;
+        }
+
+        // Default: if last arg corresponds to res0 in many patterns
+        if (resIndex === 0 && args.length) {
+            return at(args.length - 1);
+        }
+
+        return null;
     }
 
     setupZoom() {
