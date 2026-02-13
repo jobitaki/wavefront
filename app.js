@@ -522,8 +522,8 @@ class DataflowVisualizer {
                 console.warn(`✗ No node found for instruction ID ${instr.instructionId} (${instr.instructionName})`);
             }
 
-            // Highlight edges connected to this node
-            this.highlightConnectedEdges(instr.instructionId);
+            // Highlight edges connected to this node (pass full instruction for steer logic)
+            this.highlightConnectedEdges(instr);
         });
         
         // NEW: Single batch DOM insertion at the end
@@ -552,25 +552,47 @@ class DataflowVisualizer {
         return gToken;
     }
 
-    highlightConnectedEdges(instructionId) {
+    highlightConnectedEdges(instrOrId) {
         if (!this.graphSvg) return;
 
-        const nodeName = this.nodeIdToName.get(instructionId);
-        if (!nodeName) {
-            return;
-        }
+        // Support being passed either an instruction object or an instructionId
+        const instr = (typeof instrOrId === 'object' && instrOrId !== null) ? instrOrId : null;
+        const instructionId = instr ? instr.instructionId : instrOrId;
 
-        // NEW: Use edge lookup map instead of querying all edges
+        const nodeName = this.nodeIdToName.get(instructionId);
+        if (!nodeName) return;
+
+        // Use edge lookup map instead of querying all edges
         const relevantEdges = this.edgesBySource.get(nodeName) || [];
-        
+
         relevantEdges.forEach(edge => {
             const titleEl = edge.querySelector('title');
-            if (titleEl) {
-                const edgeTitle = titleEl.textContent.trim();
-                // Check if this edge starts from the node with the given name
-                if (edgeTitle.startsWith(nodeName + '->')) {
+            if (!titleEl) return;
+            const edgeTitle = titleEl.textContent.trim();
+
+            // Only consider outgoing edges from this node
+            if (!edgeTitle.startsWith(nodeName + '->')) return;
+
+            // If we don't have the full instruction, default to previous behavior
+            if (!instr) {
+                edge.classList.add('highlight-edge');
+                return;
+            }
+
+            const name = instr.instructionName ? instr.instructionName.toLowerCase() : '';
+
+            // For steer instructions, highlight only if this edge corresponds to a non-null res value
+            if (name.includes('steer')) {
+                const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                const val = this._getResValueForIndex(instr, resIndex);
+                if (val !== null && val !== undefined) {
                     edge.classList.add('highlight-edge');
+                } else {
+                    edge.classList.remove('highlight-edge');
                 }
+            } else {
+                // Non-steer: highlight as before
+                edge.classList.add('highlight-edge');
             }
         });
     }
@@ -662,13 +684,12 @@ class DataflowVisualizer {
         // Steer instructions
         if (name.includes('steer')) {
             // dataflow.steer: args: decider, data, channel_output
-            if (args.length >= 3) {
+            if (name.includes('dataflow.steer') && args.length >= 3) {
                 const channel = Number(at(2));
                 const data = at(1);
                 return (resIndex === channel) ? data : null;
-            }
-            // true/false steer (1-output): args: decider, data, condition_met
-            if (args.length >= 3) {
+            } else if (args.length >= 3) {
+                // true/false steer (1-output): args: decider, data, condition_met
                 const fired = String(at(2)) !== '0' && String(at(2)).toLowerCase() !== 'false';
                 return (resIndex === 0 && fired) ? at(1) : null;
             }
