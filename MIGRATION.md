@@ -162,6 +162,9 @@ brew install graphviz
 # Download installer from graphviz.org
 ```
 
+### Python Requirements
+- **Python 3.9 or higher** (required by PyQt6)
+
 ### Python Packages
 ```bash
 pip install PyQt6 graphviz

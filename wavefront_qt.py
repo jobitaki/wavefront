@@ -2,6 +2,8 @@
 """
 Wavefront - Dataflow Token Visualizer (PyQt Version)
 A tool for visualizing dataflow graphs and animating execution traces.
+
+Requires Python 3.9+ (for PyQt6 compatibility)
 """
 
 import sys
@@ -10,6 +12,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
+# Check Python version
+if sys.version_info < (3, 9):
+    print("Error: Python 3.9 or higher is required (current: {}.{}.{})".format(
+        sys.version_info.major, sys.version_info.minor, sys.version_info.micro
+    ))
+    sys.exit(1)
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFileDialog, QSlider, QGraphicsView,
@@ -17,7 +26,7 @@ from PyQt6.QtWidgets import (
     QGraphicsRectItem, QGraphicsLineItem, QGraphicsPathItem,
     QMessageBox, QSplitter, QTextEdit, QGroupBox
 )
-from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, QLineF, QPainterPath
+from PyQt6.QtCore import Qt, QTimer, QPointF, QRectF, QLineF
 from PyQt6.QtGui import (
     QPen, QBrush, QColor, QPainter, QFont, QTransform,
     QWheelEvent, QKeyEvent, QPainterPath
@@ -48,6 +57,11 @@ class DataflowEntry:
 class GraphViewer(QGraphicsView):
     """Custom graphics view with zoom and pan capabilities."""
     
+    MIN_ZOOM = 0.1
+    MAX_ZOOM = 10.0
+    ZOOM_IN_FACTOR = 1.15
+    ZOOM_OUT_FACTOR = 0.85
+    
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -62,31 +76,31 @@ class GraphViewer(QGraphicsView):
     def wheelEvent(self, event: QWheelEvent):
         """Handle mouse wheel for zooming."""
         if event.angleDelta().y() > 0:
-            factor = 1.15
+            factor = self.ZOOM_IN_FACTOR
             self._zoom *= factor
         else:
-            factor = 0.85
+            factor = self.ZOOM_OUT_FACTOR
             self._zoom *= factor
         
-        if self._zoom > 0.1 and self._zoom < 10:
+        if self.MIN_ZOOM < self._zoom < self.MAX_ZOOM:
             self.scale(factor, factor)
         else:
             self._zoom /= factor
     
     def zoom_in(self):
         """Zoom in the view."""
-        factor = 1.15
+        factor = self.ZOOM_IN_FACTOR
         self._zoom *= factor
-        if self._zoom < 10:
+        if self._zoom < self.MAX_ZOOM:
             self.scale(factor, factor)
         else:
             self._zoom /= factor
     
     def zoom_out(self):
         """Zoom out the view."""
-        factor = 0.85
+        factor = self.ZOOM_OUT_FACTOR
         self._zoom *= factor
-        if self._zoom > 0.1:
+        if self._zoom > self.MIN_ZOOM:
             self.scale(factor, factor)
         else:
             self._zoom /= factor
@@ -431,7 +445,9 @@ class WavefrontVisualizer(QMainWindow):
         
         # Calculate interval based on speed (speed 1-10, where 10 is fastest)
         # Interval in milliseconds: 1000 / speed
-        interval = int(1000 / self.playback_speed)
+        # Guard against division by zero (should not happen with slider min=1, but defensive)
+        speed = max(1, self.playback_speed)
+        interval = int(1000 / speed)
         self.playback_timer.start(interval)
     
     def pause(self):

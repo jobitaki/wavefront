@@ -16,7 +16,7 @@ A desktop application for visualizing dataflow graphs and animating execution tr
 
 ### Prerequisites
 
-1. **Python 3.8 or higher**
+1. **Python 3.9 or higher** (required by PyQt6)
 2. **System dependencies**:
    - Graphviz (for graph rendering)
 
