@@ -27,7 +27,10 @@ The new desktop application is built with:
 |---------|-------------|--------------|
 | File Loading | Drag & drop, file picker | Native file dialogs |
 | Graph Rendering | Graphviz WASM | Graphviz native (faster) |
-| Visualization | SVG via D3.js | SVG via QGraphicsSvgItem |
+| Visualization | SVG via D3.js | SVG + overlay graphics |
+| Node Highlighting | CSS classes | QGraphicsItems overlays |
+| Edge Highlighting | CSS classes | QGraphicsItems overlays |
+| Token Display | SVG elements | QGraphicsItems overlays |
 | Zoom/Pan | D3 zoom behavior | QGraphicsView built-in |
 | Playback | JavaScript timers | QTimer (more reliable) |
 | Keyboard Shortcuts | JavaScript events | Qt key events |
@@ -130,22 +133,25 @@ pattern = re.compile(r'^\[(\d+)\]\s+\((\d+)\)\s+(\S+)(.*)$')
 - Rich Qt widget library
 - Strong typing and IDE support
 
-## Known Limitations
+## Implementation Status
 
-### 1. **Node Highlighting**
-The current implementation uses `QGraphicsSvgItem` for rendering, which doesn't allow easy manipulation of individual SVG elements. Node highlighting during animation is limited.
+### ✅ Implemented Features
 
-**Potential Solutions:**
-- Parse SVG and create individual QGraphicsItems for each node/edge
-- Use Qt's Graphics View framework with custom items
-- Implement overlay graphics for highlighting
+All core features from the web version have been successfully implemented:
+- **Node Highlighting**: Active nodes are highlighted with orange glow and stroke during playback
+- **Edge Highlighting**: Edges connected to active nodes are highlighted in gold
+- **Token Visualization**: Data values are displayed as red circular tokens on edges
+- **SVG Parsing**: The application parses SVG output from Graphviz to extract node/edge positions
+- **Overlay Graphics**: Uses QGraphicsItems overlaid on the SVG for dynamic highlighting
 
-### 2. **System Dependencies**
+### Known Limitations
+
+### 1. **System Dependencies**
 - Requires Graphviz to be installed on the system
-- Requires Python 3.8+ 
+- Requires Python 3.9+ (for PyQt6 compatibility)
 - May need additional system libraries (EGL, etc.) on some Linux distros
 
-### 3. **UI Customization**
+### 2. **UI Customization**
 The PyQt version uses native widgets which may look different from the web version's custom styling. The functionality is equivalent but the visual appearance differs.
 
 ## Installation Requirements
@@ -192,14 +198,14 @@ Expected output:
 ## Future Enhancements
 
 ### Potential Improvements
-1. **Enhanced Node Highlighting**: Parse SVG and create manipulable graphics items
-2. **Export Features**: Save animation as video or GIF
-3. **Multiple Windows**: Support multiple visualizations simultaneously
-4. **Graph Editing**: Allow interactive graph modifications
-5. **Advanced Analytics**: Add statistics and performance metrics
-6. **Plugin System**: Support for custom analyzers and visualizations
-7. **Themes**: Light/dark theme support
-8. **Session Saving**: Save and restore visualization sessions
+1. **Export Features**: Save animation as video or GIF
+2. **Multiple Windows**: Support multiple visualizations simultaneously
+3. **Graph Editing**: Allow interactive graph modifications
+4. **Advanced Analytics**: Add statistics and performance metrics
+5. **Plugin System**: Support for custom analyzers and visualizations
+6. **Themes**: Light/dark theme support
+7. **Session Saving**: Save and restore visualization sessions
+8. **Enhanced Token Display**: Show more detailed token information (memory addresses, types, etc.)
 
 ### Code Quality
 - Add comprehensive unit tests

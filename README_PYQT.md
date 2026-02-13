@@ -6,6 +6,9 @@ A desktop application for visualizing dataflow graphs and animating execution tr
 
 - **DOT Graph Visualization**: Load and render dataflow graphs in DOT format using Graphviz
 - **Fire Log Animation**: Animate execution traces with cycle-by-cycle playback
+- **Node Highlighting**: Active nodes are highlighted during playback with orange glow effect
+- **Edge Highlighting**: Edges connected to active nodes are highlighted in gold
+- **Token Visualization**: Data values displayed as red tokens on edges showing data flow
 - **Interactive Controls**: Play, pause, step forward/backward through execution cycles
 - **Zoom & Pan**: Interactive graph navigation with mouse wheel zoom and drag-to-pan
 - **Execution Log**: Real-time display of instructions executed in each cycle

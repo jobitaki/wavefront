@@ -8,6 +8,7 @@ Requires Python 3.9+ (for PyQt6 compatibility)
 
 import sys
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
@@ -129,8 +130,14 @@ class WavefrontVisualizer(QMainWindow):
         
         # Graph elements
         self.svg_item: Optional[QGraphicsSvgItem] = None
-        self.node_map: Dict[int, QGraphicsTextItem] = {}  # instruction_id -> graphics item
-        self.original_node_colors: Dict[int, QColor] = {}
+        self.svg_data: Optional[str] = None  # Store raw SVG for parsing
+        self.node_map: Dict[int, Dict] = {}  # instruction_id -> {element, bounds, name}
+        self.edge_map: Dict[str, Dict] = {}  # edge_id -> {path, source, target}
+        self.node_id_to_name: Dict[int, str] = {}  # instruction_id -> node_name
+        
+        # Highlight overlays
+        self.highlight_items: List = []  # Graphics items for highlighting
+        self.token_items: List = []  # Graphics items for tokens
         
         # UI setup
         self.init_ui()
@@ -360,13 +367,15 @@ class WavefrontVisualizer(QMainWindow):
         try:
             # Use graphviz to render to SVG
             src = graphviz.Source(self.dot_content)
-            svg_data = src.pipe(format='svg').decode('utf-8')
+            self.svg_data = src.pipe(format='svg').decode('utf-8')
             
             # Clear the scene
             self.scene.clear()
+            self.highlight_items.clear()
+            self.token_items.clear()
             
             # Load SVG into scene
-            renderer = QSvgRenderer(svg_data.encode('utf-8'))
+            renderer = QSvgRenderer(self.svg_data.encode('utf-8'))
             self.svg_item = QGraphicsSvgItem()
             self.svg_item.setSharedRenderer(renderer)
             self.scene.addItem(self.svg_item)
@@ -374,8 +383,8 @@ class WavefrontVisualizer(QMainWindow):
             # Set scene rect to SVG bounds
             self.scene.setSceneRect(self.svg_item.boundingRect())
             
-            # Build node map for highlighting
-            self.build_node_map()
+            # Parse SVG to extract node and edge information
+            self.parse_svg_elements()
             
             # Fit graph in view
             self.graph_view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
@@ -383,18 +392,160 @@ class WavefrontVisualizer(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to render graph:\n{str(e)}")
     
-    def build_node_map(self):
-        """Build a map of instruction IDs to their graphical representations."""
-        # Note: With SVG rendering, we can't easily highlight individual nodes
-        # This is a limitation of using QGraphicsSvgItem
-        # For better highlighting, we would need to parse the SVG or use a different approach
-        self.node_map = {}
+    def parse_svg_elements(self):
+        """Parse SVG to extract node and edge positions for highlighting."""
+        if not self.svg_data:
+            return
         
-        # Extract node IDs from DOT content for reference
+        try:
+            # Parse SVG XML
+            root = ET.fromstring(self.svg_data)
+            
+            # Define SVG namespace
+            ns = {'svg': 'http://www.w3.org/2000/svg'}
+            
+            # Find all groups (nodes and edges in Graphviz SVG)
+            for g in root.findall('.//svg:g', ns):
+                class_attr = g.get('class', '')
+                
+                # Process nodes
+                if class_attr == 'node':
+                    self._parse_node(g, ns)
+                
+                # Process edges
+                elif class_attr == 'edge':
+                    self._parse_edge(g, ns)
+            
+        except Exception as e:
+            print(f"Error parsing SVG: {e}")
+            # Fallback to simple extraction from DOT content
+            self._extract_nodes_from_dot()
+    
+    def _parse_node(self, node_elem, ns):
+        """Parse a node element from SVG."""
+        # Get node title (e.g., "dataflow_constant_1")
+        title = node_elem.find('svg:title', ns)
+        if title is None or title.text is None:
+            return
+        
+        node_name = title.text.strip()
+        
+        # Find the shape element (ellipse, polygon, rect, etc.)
+        shape = (node_elem.find('.//svg:ellipse', ns) or 
+                 node_elem.find('.//svg:polygon', ns) or
+                 node_elem.find('.//svg:rect', ns) or
+                 node_elem.find('.//svg:circle', ns))
+        
+        if shape is None:
+            return
+        
+        # Extract bounding box based on shape type
+        bounds = self._get_shape_bounds(shape)
+        
+        # Extract text to find [ID:X]
+        text_elems = node_elem.findall('.//svg:text', ns)
+        instruction_id = None
+        for text_elem in text_elems:
+            text_content = ''.join(text_elem.itertext())
+            id_match = re.search(r'\[ID:(\d+)\]', text_content)
+            if id_match:
+                instruction_id = int(id_match.group(1))
+                break
+        
+        if instruction_id is not None:
+            self.node_map[instruction_id] = {
+                'name': node_name,
+                'bounds': bounds,
+                'shape_type': shape.tag.split('}')[-1]  # Remove namespace
+            }
+            self.node_id_to_name[instruction_id] = node_name
+    
+    def _parse_edge(self, edge_elem, ns):
+        """Parse an edge element from SVG."""
+        # Get edge title (e.g., "node1->node2")
+        title = edge_elem.find('svg:title', ns)
+        if title is None or title.text is None:
+            return
+        
+        edge_id = title.text.strip()
+        
+        # Find the path element
+        path = edge_elem.find('.//svg:path', ns)
+        if path is None:
+            return
+        
+        # Parse source and target from edge_id
+        parts = edge_id.split('->')
+        if len(parts) == 2:
+            source = parts[0].strip()
+            target = parts[1].strip()
+            
+            # Parse the path data
+            path_data = path.get('d', '')
+            
+            self.edge_map[edge_id] = {
+                'source': source,
+                'target': target,
+                'path_data': path_data
+            }
+    
+    def _get_shape_bounds(self, shape):
+        """Get bounding rectangle for a shape element."""
+        tag = shape.tag.split('}')[-1]
+        
+        if tag == 'ellipse':
+            cx = float(shape.get('cx', 0))
+            cy = float(shape.get('cy', 0))
+            rx = float(shape.get('rx', 0))
+            ry = float(shape.get('ry', 0))
+            return QRectF(cx - rx, cy - ry, rx * 2, ry * 2)
+        
+        elif tag == 'circle':
+            cx = float(shape.get('cx', 0))
+            cy = float(shape.get('cy', 0))
+            r = float(shape.get('r', 0))
+            return QRectF(cx - r, cy - r, r * 2, r * 2)
+        
+        elif tag == 'rect':
+            x = float(shape.get('x', 0))
+            y = float(shape.get('y', 0))
+            width = float(shape.get('width', 0))
+            height = float(shape.get('height', 0))
+            return QRectF(x, y, width, height)
+        
+        elif tag == 'polygon':
+            # Parse points and compute bounding box
+            points_str = shape.get('points', '')
+            if points_str:
+                points = []
+                for coord_pair in points_str.strip().split():
+                    if ',' in coord_pair:
+                        x, y = coord_pair.split(',')
+                        points.append((float(x), float(y)))
+                
+                if points:
+                    min_x = min(p[0] for p in points)
+                    max_x = max(p[0] for p in points)
+                    min_y = min(p[1] for p in points)
+                    max_y = max(p[1] for p in points)
+                    return QRectF(min_x, min_y, max_x - min_x, max_y - min_y)
+        
+        return QRectF()
+    
+    def _extract_nodes_from_dot(self):
+        """Fallback: Extract node IDs from DOT content."""
+        if not self.dot_content:
+            return
+        
         id_pattern = re.compile(r'\[ID:(\d+)\]')
         for match in id_pattern.finditer(self.dot_content):
             node_id = int(match.group(1))
-            self.node_map[node_id] = None  # Placeholder
+            if node_id not in self.node_map:
+                self.node_map[node_id] = {
+                    'name': f'node_{node_id}',
+                    'bounds': QRectF(),
+                    'shape_type': 'unknown'
+                }
     
     def enable_controls(self):
         """Enable playback controls."""
@@ -421,6 +572,9 @@ class WavefrontVisualizer(QMainWindow):
         instructions = self.cycle_data.get(self.current_cycle, [])
         self.instr_count_label.setText(f"Instructions: {len(instructions)}")
         
+        # Clear previous highlights and tokens
+        self.clear_highlights()
+        
         # Update execution log
         log_text = f"<h3>Cycle {self.current_cycle}</h3>"
         for entry in instructions:
@@ -431,8 +585,171 @@ class WavefrontVisualizer(QMainWindow):
         
         self.execution_log.setHtml(log_text)
         
-        # Note: Node highlighting would require a different rendering approach
-        # The current SVG-based rendering doesn't allow easy manipulation of individual elements
+        # Highlight active nodes and edges, show tokens
+        self.visualize_tokens(instructions)
+    
+    def clear_highlights(self):
+        """Remove all highlight and token graphics items."""
+        for item in self.highlight_items:
+            self.scene.removeItem(item)
+        self.highlight_items.clear()
+        
+        for item in self.token_items:
+            self.scene.removeItem(item)
+        self.token_items.clear()
+    
+    def visualize_tokens(self, instructions: List[DataflowEntry]):
+        """Highlight active nodes and visualize data tokens."""
+        for entry in instructions:
+            instruction_id = entry.instruction_id
+            
+            # Highlight the node
+            if instruction_id in self.node_map:
+                node_info = self.node_map[instruction_id]
+                self.highlight_node(node_info)
+                
+                # Highlight connected edges
+                node_name = node_info.get('name')
+                if node_name:
+                    self.highlight_edges(node_name)
+                    
+                    # Place tokens on outgoing edges
+                    self.place_tokens(entry, node_name)
+    
+    def highlight_node(self, node_info: Dict):
+        """Create a highlight overlay for a node."""
+        bounds = node_info.get('bounds')
+        if not bounds or bounds.isEmpty():
+            return
+        
+        # Create highlight shape based on node type
+        shape_type = node_info.get('shape_type', 'ellipse')
+        
+        # Add padding to highlight
+        padding = 5
+        highlight_bounds = bounds.adjusted(-padding, -padding, padding, padding)
+        
+        # Create highlight item with glow effect
+        if shape_type == 'ellipse' or shape_type == 'circle':
+            highlight = QGraphicsEllipseItem(highlight_bounds)
+        else:
+            highlight = QGraphicsRectItem(highlight_bounds)
+        
+        # Style the highlight
+        pen = QPen(QColor(255, 140, 0), 4)  # Orange stroke
+        brush = QBrush(QColor(255, 244, 230, 100))  # Light orange fill with transparency
+        highlight.setPen(pen)
+        highlight.setBrush(brush)
+        highlight.setZValue(100)  # Draw above SVG but below tokens
+        
+        self.scene.addItem(highlight)
+        self.highlight_items.append(highlight)
+    
+    def highlight_edges(self, source_node: str):
+        """Highlight edges originating from the given node."""
+        for edge_id, edge_info in self.edge_map.items():
+            if edge_info['source'] == source_node:
+                # Create a highlight line along the edge path
+                path_data = edge_info.get('path_data', '')
+                if path_data:
+                    self.draw_edge_highlight(path_data)
+    
+    def draw_edge_highlight(self, path_data: str):
+        """Draw a highlight overlay on an edge path."""
+        try:
+            # Parse SVG path data and create QPainterPath
+            path = QPainterPath()
+            
+            # Simple parser for SVG path commands (M, C, L)
+            commands = re.findall(r'([MCL])\s*([\d\s,.-]+)', path_data)
+            
+            for cmd, coords in commands:
+                nums = [float(x) for x in re.findall(r'-?\d+\.?\d*', coords)]
+                
+                if cmd == 'M' and len(nums) >= 2:
+                    path.moveTo(nums[0], nums[1])
+                elif cmd == 'C' and len(nums) >= 6:
+                    path.cubicTo(nums[0], nums[1], nums[2], nums[3], nums[4], nums[5])
+                elif cmd == 'L' and len(nums) >= 2:
+                    path.lineTo(nums[0], nums[1])
+            
+            # Create path item with highlight style
+            path_item = QGraphicsPathItem(path)
+            pen = QPen(QColor(255, 215, 0), 3)  # Gold color
+            path_item.setPen(pen)
+            path_item.setZValue(99)
+            
+            self.scene.addItem(path_item)
+            self.highlight_items.append(path_item)
+            
+        except Exception as e:
+            print(f"Error drawing edge highlight: {e}")
+    
+    def place_tokens(self, entry: DataflowEntry, node_name: str):
+        """Place data token visualizations on outgoing edges."""
+        # Find edges from this node
+        for edge_id, edge_info in self.edge_map.items():
+            if edge_info['source'] == node_name:
+                # Extract token value from instruction args
+                token_value = self.get_token_value(entry)
+                if token_value is not None:
+                    # Get position at end of edge
+                    path_data = edge_info.get('path_data', '')
+                    pos = self.get_edge_end_position(path_data)
+                    if pos:
+                        self.create_token(pos, token_value)
+                        break  # Only place one token per instruction
+    
+    def get_token_value(self, entry: DataflowEntry) -> Optional[str]:
+        """Extract the token value from instruction arguments."""
+        # Simple heuristic: use first argument as token value
+        if entry.args:
+            return entry.args[0]
+        return None
+    
+    def get_edge_end_position(self, path_data: str) -> Optional[QPointF]:
+        """Get the position near the end of an edge path."""
+        try:
+            commands = re.findall(r'([MCL])\s*([\d\s,.-]+)', path_data)
+            
+            if commands:
+                # Get the last command's coordinates
+                last_cmd, last_coords = commands[-1]
+                nums = [float(x) for x in re.findall(r'-?\d+\.?\d*', last_coords)]
+                
+                if len(nums) >= 2:
+                    # Position slightly before the arrow head
+                    x, y = nums[-2], nums[-1]
+                    return QPointF(x - 15, y - 15)  # Offset slightly
+        except Exception as e:
+            print(f"Error getting edge end position: {e}")
+        
+        return None
+    
+    def create_token(self, pos: QPointF, value: str):
+        """Create a token visualization at the given position."""
+        # Create circle for token
+        token_circle = QGraphicsEllipseItem(pos.x() - 10, pos.y() - 10, 20, 20)
+        pen = QPen(QColor(204, 0, 0), 2)  # Dark red border
+        brush = QBrush(QColor(255, 68, 68))  # Red fill
+        token_circle.setPen(pen)
+        token_circle.setBrush(brush)
+        token_circle.setZValue(200)  # Draw on top of everything
+        
+        # Create text for value
+        token_text = QGraphicsTextItem(str(value))
+        token_text.setDefaultTextColor(QColor(255, 255, 255))
+        token_text.setFont(QFont("Arial", 8, QFont.Weight.Bold))
+        
+        # Center text in circle
+        text_rect = token_text.boundingRect()
+        token_text.setPos(pos.x() - text_rect.width() / 2, pos.y() - text_rect.height() / 2)
+        token_text.setZValue(201)
+        
+        self.scene.addItem(token_circle)
+        self.scene.addItem(token_text)
+        self.token_items.append(token_circle)
+        self.token_items.append(token_text)
     
     def play(self):
         """Start playback animation."""
