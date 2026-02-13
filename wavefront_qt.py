@@ -418,6 +418,8 @@ class WavefrontVisualizer(QMainWindow):
             
         except Exception as e:
             print(f"Error parsing SVG: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback to simple extraction from DOT content
             self._extract_nodes_from_dot()
     
@@ -430,11 +432,13 @@ class WavefrontVisualizer(QMainWindow):
         
         node_name = title.text.strip()
         
-        # Find the shape element (ellipse, polygon, rect, etc.)
-        shape = (node_elem.find('.//svg:ellipse', ns) or 
-                 node_elem.find('.//svg:polygon', ns) or
-                 node_elem.find('.//svg:rect', ns) or
-                 node_elem.find('.//svg:circle', ns))
+        # Find the shape element (ellipse, polygon, rect, etc.) - direct children only
+        # Note: Use 'is not None' because empty ET elements evaluate to False
+        shape = None
+        for shape_tag in ['svg:ellipse', 'svg:polygon', 'svg:rect', 'svg:circle']:
+            shape = node_elem.find(shape_tag, ns)
+            if shape is not None:
+                break
         
         if shape is None:
             return
@@ -469,8 +473,8 @@ class WavefrontVisualizer(QMainWindow):
         
         edge_id = title.text.strip()
         
-        # Find the path element
-        path = edge_elem.find('.//svg:path', ns)
+        # Find the path element (direct child)
+        path = edge_elem.find('svg:path', ns)
         if path is None:
             return
         
