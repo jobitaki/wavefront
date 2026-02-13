@@ -288,7 +288,7 @@ class DataflowVisualizer {
     buildEdgeMap() {
         // Find all edges in the SVG
         this.edgeMap.clear();
-        this.edgesBySource = new Map(); // NEW: map edges by source node for fast lookup
+        this.edgesBySource.clear(); // Clear the existing map for rebuild
 
         if (!this.graphSvg) return;
 
@@ -416,7 +416,8 @@ class DataflowVisualizer {
                 if (el.classList.contains('token')) {
                     el.remove();
                 } else {
-                    el.className = el.className.replace(/highlight-(node|edge)/g, '');
+                    // Remove highlight classes efficiently
+                    el.classList.remove('highlight-node', 'highlight-edge');
                 }
             });
     }
