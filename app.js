@@ -460,19 +460,15 @@ class DataflowVisualizer {
 
     visualizeTokens(instructions) {
         if (!this.graphSvg) return;
-
-        console.log(`Visualizing ${instructions.length} instructions in cycle ${this.currentCycle}`);
         
         // Use DocumentFragment for efficient batch DOM insertion
         const fragment = document.createDocumentFragment();
         
         instructions.forEach(instr => {
-            console.log(`Looking for instruction ID ${instr.instructionId} (${instr.instructionName})`);
             
             // Highlight the node for this instruction
             const node = this.nodeMap.get(instr.instructionId);
             if (node) {
-                console.log(`✓ Found node for ID ${instr.instructionId}`);
                 node.classList.add('highlight-node');
                 
                 // Place tokens at the end of outgoing edges
@@ -561,7 +557,6 @@ class DataflowVisualizer {
 
         const nodeName = this.nodeIdToName.get(instructionId);
         if (!nodeName) {
-            console.log(`No node name found for instruction ID ${instructionId}`);
             return;
         }
 
@@ -575,7 +570,6 @@ class DataflowVisualizer {
                 // Check if this edge starts from the node with the given name
                 if (edgeTitle.startsWith(nodeName + '->')) {
                     edge.classList.add('highlight-edge');
-                    console.log(`Highlighted edge: ${edgeTitle}`);
                 }
             }
         });
