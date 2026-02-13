@@ -8,8 +8,6 @@ This directory contains comprehensive documentation mapping **fire.log execution
 
 Open `index.html` in your browser to visualize token flow through the dataflow graph. See [VISUALIZER.md](VISUALIZER.md) for details.
 
-![Visualizer Screenshot](https://github.com/user-attachments/assets/e6ca81dc-ff8e-467d-bcf9-bd5de2009a7a)
-
 ## Files
 
 ### 1. **fire_log_port_mapping.md** (14 KB)
