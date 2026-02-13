@@ -14,6 +14,7 @@ class DataflowVisualizer {
         this.nodeMap = new Map(); // Map instruction ID to node element
         this.nodeIdToName = new Map(); // Map instruction ID to node name (from DOT file)
         this.edgeMap = new Map(); // Map edge identifier to edge element
+        this.edgesBySource = new Map(); // NEW: for fast edge lookup by source node
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         
@@ -287,6 +288,7 @@ class DataflowVisualizer {
     buildEdgeMap() {
         // Find all edges in the SVG
         this.edgeMap.clear();
+        this.edgesBySource.clear(); // Clear the existing map for rebuild
 
         if (!this.graphSvg) return;
 
@@ -297,10 +299,20 @@ class DataflowVisualizer {
                 const edgeId = titleEl.textContent;
                 this.edgeMap.set(edgeId, edge);
                 this.edgeMap.set(index, edge); // Also store by index for fallback
+                
+                // NEW: Extract source node name and index edge by source
+                const match = edgeId.match(/^([^-:>\s]+)/);
+                if (match) {
+                    const sourceName = match[1];
+                    if (!this.edgesBySource.has(sourceName)) {
+                        this.edgesBySource.set(sourceName, []);
+                    }
+                    this.edgesBySource.get(sourceName).push(edge);
+                }
             }
         });
 
-
+        console.log(`Built edge map with ${this.edgeMap.size} edges`);
     }
 
     enableControls() {
@@ -396,24 +408,18 @@ class DataflowVisualizer {
     }
 
     clearHighlights() {
-        // Remove all highlight classes and tokens
         if (!this.graphSvg) return;
-
-        // Remove highlight classes separately for accuracy
-        const highlightedNodes = this.graphSvg.querySelectorAll('.highlight-node');
-        highlightedNodes.forEach(el => {
-            el.classList.remove('highlight-node');
-        });
-
-        const highlightedEdges = this.graphSvg.querySelectorAll('.highlight-edge');
-        highlightedEdges.forEach(el => {
-            el.classList.remove('highlight-edge');
-        });
-
-        const tokens = this.graphSvg.querySelectorAll('.token');
-        tokens.forEach(el => {
-            el.remove();
-        });
+        
+        // Batch class removal for better performance
+        this.graphSvg.querySelectorAll('.highlight-node, .highlight-edge, .token')
+            .forEach(el => {
+                if (el.classList.contains('token')) {
+                    el.remove();
+                } else {
+                    // Remove highlight classes efficiently
+                    el.classList.remove('highlight-node', 'highlight-edge');
+                }
+            });
     }
 
     updateExecutionLog(instructions) {
@@ -454,63 +460,46 @@ class DataflowVisualizer {
 
     visualizeTokens(instructions) {
         if (!this.graphSvg) return;
-
-
+        
+        // Use DocumentFragment for efficient batch DOM insertion
+        const fragment = document.createDocumentFragment();
         
         instructions.forEach(instr => {
-
             
             // Highlight the node for this instruction
             const node = this.nodeMap.get(instr.instructionId);
             if (node) {
-
-                // Highlight the entire node group
                 node.classList.add('highlight-node');
                 
-                // Place tokens at the end of outgoing edges. If no outgoing edge, fall back to node center.
+                // Place tokens at the end of outgoing edges
                 const nodeName = this.nodeIdToName.get(instr.instructionId);
                 let placed = false;
+                
                 if (nodeName) {
-                    const edges = this.graphSvg.querySelectorAll('g.edge');
-                    edges.forEach(edge => {
+                    // NEW: Use edge lookup map instead of querying all edges
+                    const relevantEdges = this.edgesBySource.get(nodeName) || [];
+                    
+                    relevantEdges.forEach(edge => {
                         const titleEl = edge.querySelector('title');
                         if (!titleEl) return;
+                        
                         const edgeTitle = titleEl.textContent.trim();
-                        if (edgeTitle.startsWith(nodeName + '->') || edgeTitle.startsWith(nodeName + ':') || edgeTitle.includes(nodeName+" ")) {
-                            // try to get the path end point
-                            const pathEl = edge.querySelector('path');
-                            if (pathEl && pathEl.getTotalLength) {
-                                const L = pathEl.getTotalLength();
-                                const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
-                                const x = pt.x;
-                                const y = pt.y;
-                                // determine which res index this edge corresponds to (if any)
-                                const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
-                                const val = this._getResValueForIndex(instr, resIndex);
-                                if (val !== null && val !== undefined) {
-                                    // token group
-                                    const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                                    gToken.setAttribute('transform', `translate(${x}, ${y})`);
-                                    gToken.classList.add('token');
-
-                                    // circle
-                                    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                                    circle.setAttribute('r', '10');
-                                    circle.classList.add('token-circle');
-                                    gToken.appendChild(circle);
-
-                                    // token value text
-                                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                                    text.textContent = String(val);
-                                    text.setAttribute('class', 'token-text');
-                                    text.setAttribute('x', '0');
-                                    text.setAttribute('y', '0');
-                                    gToken.appendChild(text);
-
-                                    const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
-                                    target.appendChild(gToken);
-                                    placed = true;
-                                }
+                        const pathEl = edge.querySelector('path');
+                        
+                        if (pathEl && pathEl.getTotalLength) {
+                            const L = pathEl.getTotalLength();
+                            const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
+                            const x = pt.x;
+                            const y = pt.y;
+                            
+                            const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                            const val = this._getResValueForIndex(instr, resIndex);
+                            
+                            if (val !== null && val !== undefined) {
+                                // Create token element and add to fragment
+                                const gToken = this._createTokenElement(x, y, val);
+                                fragment.appendChild(gToken);
+                                placed = true;
                             }
                         }
                     });
@@ -524,60 +513,63 @@ class DataflowVisualizer {
                         const cx = bbox.x + bbox.width / 2;
                         const cy = bbox.y + bbox.height / 2;
 
-                        const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                        gToken.setAttribute('transform', `translate(${cx}, ${cy})`);
-                        gToken.classList.add('token');
-
-                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        circle.setAttribute('r', '10');
-                        circle.classList.add('token-circle');
-                        gToken.appendChild(circle);
-
                         const val = (instr.args && instr.args.length) ? instr.args[0] : '';
-                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        text.textContent = val;
-                        text.setAttribute('class', 'token-text');
-                        text.setAttribute('x', '0');
-                        text.setAttribute('y', '0');
-                        gToken.appendChild(text);
-
-                        const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
-                        target.appendChild(gToken);
+                        const gToken = this._createTokenElement(cx, cy, val);
+                        fragment.appendChild(gToken);
                     }
                 }
             } else {
                 console.warn(`✗ No node found for instruction ID ${instr.instructionId} (${instr.instructionName})`);
             }
 
-            // Try to highlight edges connected to this node
-            // This is a simplification - in a full implementation, we'd parse the DOT structure
-            // to understand exact edge connections
+            // Highlight edges connected to this node
             this.highlightConnectedEdges(instr.instructionId);
         });
+        
+        // NEW: Single batch DOM insertion at the end
+        const target = (this.contentGroup && this.contentGroup.appendChild) ? this.contentGroup : this.graphSvg;
+        target.appendChild(fragment);
+    }
+
+    // NEW: Helper method to create token elements
+    _createTokenElement(x, y, value) {
+        const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        gToken.setAttribute('transform', `translate(${x}, ${y})`);
+        gToken.classList.add('token');
+
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('r', '10');
+        circle.classList.add('token-circle');
+        gToken.appendChild(circle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.textContent = String(value);
+        text.setAttribute('class', 'token-text');
+        text.setAttribute('x', '0');
+        text.setAttribute('y', '0');
+        gToken.appendChild(text);
+
+        return gToken;
     }
 
     highlightConnectedEdges(instructionId) {
-        // Highlight only output edges from the given instruction
-        // Edge titles are in format "nodeName1->nodeName2"
         if (!this.graphSvg) return;
 
-        // Get the node name for this instruction ID
         const nodeName = this.nodeIdToName.get(instructionId);
         if (!nodeName) {
-
             return;
         }
 
-        const edges = this.graphSvg.querySelectorAll('g.edge');
-        edges.forEach(edge => {
+        // NEW: Use edge lookup map instead of querying all edges
+        const relevantEdges = this.edgesBySource.get(nodeName) || [];
+        
+        relevantEdges.forEach(edge => {
             const titleEl = edge.querySelector('title');
             if (titleEl) {
                 const edgeTitle = titleEl.textContent.trim();
                 // Check if this edge starts from the node with the given name
-                // Edge format is "nodeName1->nodeName2"
                 if (edgeTitle.startsWith(nodeName + '->')) {
                     edge.classList.add('highlight-edge');
-
                 }
             }
         });
