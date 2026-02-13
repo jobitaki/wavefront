@@ -17,7 +17,29 @@ class DataflowVisualizer {
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         
+        // Cache DOM elements for performance
+        this.dom = {};
+        this.cacheDOMElements();
+        
         this.initializeEventListeners();
+    }
+
+    cacheDOMElements() {
+        // Cache frequently accessed DOM elements
+        this.dom.graphContainer = document.getElementById('graph-container');
+        this.dom.executionLog = document.getElementById('executionLog');
+        this.dom.currentCycle = document.getElementById('currentCycle');
+        this.dom.cycleInstrCount = document.getElementById('cycleInstrCount');
+        this.dom.playBtn = document.getElementById('playBtn');
+        this.dom.pauseBtn = document.getElementById('pauseBtn');
+        this.dom.prevBtn = document.getElementById('prevBtn');
+        this.dom.nextBtn = document.getElementById('nextBtn');
+        this.dom.resetBtn = document.getElementById('resetBtn');
+        this.dom.speedValue = document.getElementById('speedValue');
+        this.dom.playbackControls = document.getElementById('playbackControls');
+        this.dom.stats = document.getElementById('stats');
+        this.dom.totalCycles = document.getElementById('totalCycles');
+        this.dom.totalNodes = document.getElementById('totalNodes');
     }
 
     initializeEventListeners() {
@@ -35,7 +57,7 @@ class DataflowVisualizer {
         // Speed control
         document.getElementById('speedSlider').addEventListener('input', (e) => {
             this.playbackSpeed = parseInt(e.target.value);
-            document.getElementById('speedValue').textContent = `${this.playbackSpeed}x`;
+            this.dom.speedValue.textContent = `${this.playbackSpeed}x`;
             if (this.isPlaying) {
                 this.pause();
                 this.play();
@@ -165,7 +187,7 @@ class DataflowVisualizer {
             }
         });
 
-        console.log(`Parsed ${this.fireLogData.length} fire.log entries across ${this.cycleData.size} cycles`);
+
     }
 
     async checkAndRenderGraph() {
@@ -218,7 +240,7 @@ class DataflowVisualizer {
                 this.buildEdgeMap();
             }
 
-            console.log('Graph rendered successfully');
+
         } catch (error) {
             console.error('Error rendering graph:', error);
             if (loadingNote) loadingNote.textContent = `Error rendering graph: ${error.message}`;
@@ -255,11 +277,11 @@ class DataflowVisualizer {
                 if (nodeName) {
                     this.nodeIdToName.set(id, nodeName);
                 }
-                console.log(`Mapped ID ${id} to node: ${nodeName}`);
+
             }
         });
 
-        console.log(`Built node map with ${this.nodeMap.size} nodes`);
+
     }
 
     buildEdgeMap() {
@@ -278,34 +300,34 @@ class DataflowVisualizer {
             }
         });
 
-        console.log(`Built edge map with ${this.edgeMap.size} edges`);
+
     }
 
     enableControls() {
-        document.getElementById('playbackControls').style.display = 'flex';
-        document.getElementById('executionLog').style.display = 'block';
-        document.getElementById('stats').style.display = 'flex';
+        this.dom.playbackControls.style.display = 'flex';
+        this.dom.executionLog.style.display = 'block';
+        this.dom.stats.style.display = 'flex';
         
-        document.getElementById('playBtn').disabled = false;
-        document.getElementById('prevBtn').disabled = false;
-        document.getElementById('nextBtn').disabled = false;
-        document.getElementById('resetBtn').disabled = false;
+        this.dom.playBtn.disabled = false;
+        this.dom.prevBtn.disabled = false;
+        this.dom.nextBtn.disabled = false;
+        this.dom.resetBtn.disabled = false;
         
         this.reset();
     }
 
     updateStats() {
         const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
-        document.getElementById('totalCycles').textContent = maxCycle;
-        document.getElementById('totalNodes').textContent = this.nodeMap.size;
+        this.dom.totalCycles.textContent = maxCycle;
+        this.dom.totalNodes.textContent = this.nodeMap.size;
     }
 
     play() {
         if (this.isPlaying) return;
         
         this.isPlaying = true;
-        document.getElementById('playBtn').disabled = true;
-        document.getElementById('pauseBtn').disabled = false;
+        this.dom.playBtn.disabled = true;
+        this.dom.pauseBtn.disabled = false;
 
         // Calculate interval based on speed (higher speed = shorter interval)
         const baseInterval = 1000; // 1 second base
@@ -324,8 +346,8 @@ class DataflowVisualizer {
 
     pause() {
         this.isPlaying = false;
-        document.getElementById('playBtn').disabled = false;
-        document.getElementById('pauseBtn').disabled = true;
+        this.dom.playBtn.disabled = false;
+        this.dom.pauseBtn.disabled = true;
         
         if (this.playbackInterval) {
             clearInterval(this.playbackInterval);
@@ -355,7 +377,7 @@ class DataflowVisualizer {
     }
 
     updateVisualization() {
-        document.getElementById('currentCycle').textContent = this.currentCycle;
+        this.dom.currentCycle.textContent = this.currentCycle;
         
         // Clear previous highlights and tokens
         this.clearHighlights();
@@ -364,7 +386,7 @@ class DataflowVisualizer {
         const instructions = this.cycleData.get(this.currentCycle) || [];
         
         // Update instruction count
-        document.getElementById('cycleInstrCount').textContent = instructions.length;
+        this.dom.cycleInstrCount.textContent = instructions.length;
         
         // Update execution log
         this.updateExecutionLog(instructions);
@@ -377,21 +399,20 @@ class DataflowVisualizer {
         // Remove all highlight classes and tokens
         if (!this.graphSvg) return;
 
-        this.graphSvg.querySelectorAll('.highlight-node').forEach(el => {
-            el.classList.remove('highlight-node');
+        // Use single query and class removal for better performance
+        const highlightedElements = this.graphSvg.querySelectorAll('.highlight-node, .highlight-edge');
+        highlightedElements.forEach(el => {
+            el.classList.remove('highlight-node', 'highlight-edge');
         });
 
-        this.graphSvg.querySelectorAll('.highlight-edge').forEach(el => {
-            el.classList.remove('highlight-edge');
-        });
-
-        this.graphSvg.querySelectorAll('.token').forEach(el => {
+        const tokens = this.graphSvg.querySelectorAll('.token');
+        tokens.forEach(el => {
             el.remove();
         });
     }
 
     updateExecutionLog(instructions) {
-        const logEl = document.getElementById('executionLog');
+        const logEl = this.dom.executionLog;
         
         if (instructions.length === 0) {
             logEl.innerHTML = '<div class="execution-log-entry">No instructions in this cycle</div>';
@@ -422,22 +443,22 @@ class DataflowVisualizer {
         // Scroll to show current cycle
         const currentEntry = logEl.querySelector('.execution-log-entry.current');
         if (currentEntry) {
-            currentEntry.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            currentEntry.scrollIntoView({ behavior: 'instant', block: 'center' });
         }
     }
 
     visualizeTokens(instructions) {
         if (!this.graphSvg) return;
 
-        console.log(`Visualizing ${instructions.length} instructions in cycle ${this.currentCycle}`);
+
         
         instructions.forEach(instr => {
-            console.log(`Looking for instruction ID ${instr.instructionId} (${instr.instructionName})`);
+
             
             // Highlight the node for this instruction
             const node = this.nodeMap.get(instr.instructionId);
             if (node) {
-                console.log(`✓ Found node for ID ${instr.instructionId}`);
+
                 // Highlight the entire node group
                 node.classList.add('highlight-node');
                 
@@ -538,7 +559,7 @@ class DataflowVisualizer {
         // Get the node name for this instruction ID
         const nodeName = this.nodeIdToName.get(instructionId);
         if (!nodeName) {
-            console.log(`No node name found for instruction ID ${instructionId}`);
+
             return;
         }
 
@@ -551,7 +572,7 @@ class DataflowVisualizer {
                 // Edge format is "nodeName1->nodeName2"
                 if (edgeTitle.startsWith(nodeName + '->')) {
                     edge.classList.add('highlight-edge');
-                    console.log(`Highlighted edge: ${edgeTitle}`);
+
                 }
             }
         });
@@ -792,7 +813,7 @@ class DataflowVisualizer {
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.visualizer = new DataflowVisualizer();
-    console.log('Dataflow Token Visualizer initialized');
+
 });
 
 // Attach drag & drop handlers for the centered upload modal
