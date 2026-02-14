@@ -184,8 +184,15 @@ class DataflowVisualizer {
 
         const statusEl = document.getElementById('fireLogStatus');
         try {
-            const content = await this.readFile(file);
-            this.parseFireLog(content);
+            // For small files (< 10MB), use the old method
+            if (file.size < 10 * 1024 * 1024) {
+                const content = await this.readFile(file);
+                this.parseFireLog(content);
+            } else {
+                // For large files, use chunked parsing
+                await this.parseFireLogChunked(file, statusEl);
+            }
+            
             statusEl.textContent = `✓ Loaded: ${file.name} (${this.fireLogData.length} entries)`;
             statusEl.className = 'file-status success';
             
@@ -206,6 +213,69 @@ class DataflowVisualizer {
         });
     }
 
+    async parseFireLogChunked(file, statusEl) {
+        this.fireLogData = [];
+        this.cycleData.clear();
+        
+        const chunkSize = 1024 * 1024; // 1MB chunks
+        const fileSize = file.size;
+        let offset = 0;
+        let partialLine = '';
+        const fireLogRegex = /^\[(\d+)\]\s+\((\d+)\)\s+(\S+)(.*)$/;
+        
+        while (offset < fileSize) {
+            const chunk = file.slice(offset, offset + chunkSize);
+            const text = await this.readFile(chunk);
+            
+            // Combine with any partial line from previous chunk
+            const fullText = partialLine + text;
+            const lines = fullText.split('\n');
+            
+            // Save the last line if it's incomplete (unless we're at end of file)
+            if (offset + chunkSize < fileSize) {
+                partialLine = lines.pop();
+            } else {
+                partialLine = '';
+            }
+            
+            // Process complete lines
+            for (const line of lines) {
+                const match = line.trim().match(fireLogRegex);
+                if (match) {
+                    const cycle = parseInt(match[1]);
+                    const instructionId = parseInt(match[2]);
+                    const instructionName = match[3];
+                    const argsStr = match[4].trim();
+                    const args = argsStr ? argsStr.split(/\s+/) : [];
+
+                    const entry = {
+                        cycle,
+                        instructionId,
+                        instructionName,
+                        args,
+                        line: line.trim()
+                    };
+
+                    this.fireLogData.push(entry);
+
+                    // Group by cycle
+                    if (!this.cycleData.has(cycle)) {
+                        this.cycleData.set(cycle, []);
+                    }
+                    this.cycleData.get(cycle).push(entry);
+                }
+            }
+            
+            offset += chunkSize;
+            const progress = Math.min(100, Math.round((offset / fileSize) * 100));
+            statusEl.textContent = `Loading: ${progress}% (${this.fireLogData.length} entries)`;
+            statusEl.className = 'file-status';
+            
+            // Allow UI to update
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+    }
+
     parseFireLog(content) {
         // Parse fire.log format: [cycle] (instruction_id) instruction_name [args...]
         // Note: Arguments are split on whitespace. If arguments contain spaces,
@@ -216,7 +286,7 @@ class DataflowVisualizer {
 
         const fireLogRegex = /^\[(\d+)\]\s+\((\d+)\)\s+(\S+)(.*)$/;
 
-        lines.forEach((line, index) => {
+        for (const line of lines) {
             const match = line.trim().match(fireLogRegex);
             if (match) {
                 const cycle = parseInt(match[1]);
@@ -241,9 +311,7 @@ class DataflowVisualizer {
                 }
                 this.cycleData.get(cycle).push(entry);
             }
-        });
-
-
+        }
     }
 
     async checkAndRenderGraph() {
@@ -596,6 +664,8 @@ class DataflowVisualizer {
         const boundedCycle = Math.min(maxCycle, Math.max(0, targetCycle));
         
         this.currentCycle = boundedCycle;
+
+        console.log(`Jumping to cycle ${this.currentCycle}`);
         
         if (this.queueVisualizationEnabled) {
             this.replayToCurrentCycle();
