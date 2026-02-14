@@ -15,3 +15,14 @@ debug.log
 
 # Temporary files
 /tmp/
+
+# Node.js dependencies
+node_modules/
+
+# Electron build outputs
+dist/
+out/
+
+# Package lock files
+package-lock.json
+yarn.lock

@@ -4,7 +4,7 @@
 
 # wavefront
 
-Wavefront is a web-based dataflow visualizer. It can generate cycle-by-cycle previews of tokens flowing through a dataflow graph and instructions firing. 
+Wavefront is a dataflow visualizer. It can generate cycle-by-cycle previews of tokens flowing through a dataflow graph and instructions firing. 
 
 <p align="center">
     <img src="media/demo.gif" alt="logo" width="1000" /> 
@@ -16,4 +16,31 @@ Prepare a .dot graph file of your dataflow graph and a fire.log file, both gener
 
 **Live Demo:** [https://jobitaki.github.io/wavefront/](https://jobitaki.github.io/wavefront/)
 
-Or, to use locally, open index.html in your browser. Example dot graph and fire.log are available in the examples directory.
+### Running as a Desktop Application (Electron)
+
+To run Wavefront as a desktop application:
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Start the application:
+   ```bash
+   npm start
+   ```
+
+### Building Desktop Applications
+
+To build standalone executables for distribution:
+
+- **Windows**: `npm run build:win`
+- **macOS**: `npm run build:mac`
+- **Linux**: `npm run build:linux`
+- **All platforms**: `npm run build`
+
+Built applications will be available in the `dist/` directory.
+
+### Running in Browser
+
+Alternatively, you can open `index.html` directly in your browser. Example dot graph and fire.log are available in the examples directory.
