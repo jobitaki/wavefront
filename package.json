@@ -37,16 +37,13 @@
       "!examples"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "wavefront_logo.png"
+      "target": "nsis"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "wavefront_logo.png"
+      "target": "dmg"
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "wavefront_logo.png"
+      "target": "AppImage"
     }
   }
 }

@@ -67,35 +67,17 @@ function createWindow() {
           click: () => {
             const aboutWindow = new BrowserWindow({
               width: 400,
-              height: 300,
+              height: 350,
               parent: mainWindow,
               modal: true,
               show: false,
               webPreferences: {
-                nodeIntegration: false
+                nodeIntegration: false,
+                contextIsolation: true,
+                enableRemoteModule: false
               }
             });
-            aboutWindow.loadURL(`data:text/html;charset=utf-8,
-              <html>
-                <head>
-                  <style>
-                    body {
-                      font-family: Arial, sans-serif;
-                      padding: 20px;
-                      text-align: center;
-                    }
-                    h1 { color: #333; }
-                    p { color: #666; }
-                  </style>
-                </head>
-                <body>
-                  <h1>Wavefront</h1>
-                  <p>Version 1.0.0</p>
-                  <p>A dataflow visualizer for cycle-by-cycle previews of tokens flowing through dataflow graphs.</p>
-                  <p><a href="https://github.com/jobitaki/wavefront">GitHub Repository</a></p>
-                </body>
-              </html>
-            `);
+            aboutWindow.loadFile('about.html');
             aboutWindow.once('ready-to-show', () => {
               aboutWindow.show();
             });
