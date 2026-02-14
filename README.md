@@ -1,4 +1,4 @@
-<img src="wavefront_full.png?sanitize=true" alt="logo" width="500" /> 
+<img src="wavefront_full.png?sanitize=true" alt="logo" width="400" /> 
 
 # wavefront
 
