@@ -1,0 +1,52 @@
+{
+  "name": "wavefront",
+  "version": "1.0.0",
+  "description": "Wavefront is a dataflow visualizer for cycle-by-cycle previews of tokens flowing through dataflow graphs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "keywords": [
+    "dataflow",
+    "visualizer",
+    "electron"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.wavefront.app",
+    "productName": "Wavefront",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules",
+      "!dist",
+      "!.git",
+      "!.github",
+      "!docs",
+      "!examples"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "wavefront_logo.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "wavefront_logo.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "wavefront_logo.png"
+    }
+  }
+}
