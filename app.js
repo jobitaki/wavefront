@@ -24,6 +24,10 @@ class DataflowVisualizer {
         this.dom = {};
         this.cacheDOMElements();
         
+        // Ensure queue toggle is unchecked on page load
+        const queueToggle = document.getElementById('queueToggleBtn');
+        if (queueToggle) queueToggle.checked = false;
+        
         this.initializeEventListeners();
     }
 
@@ -39,16 +43,37 @@ class DataflowVisualizer {
         this.dom.nextBtn = document.getElementById('nextBtn');
         this.dom.resetBtn = document.getElementById('resetBtn');
         this.dom.speedValue = document.getElementById('speedValue');
-        this.dom.playbackControls = document.getElementById('playbackControls');
-        this.dom.stats = document.getElementById('stats');
+        this.dom.topMenuBar = document.getElementById('topMenuBar');
+        this.dom.sidebarLeft = document.getElementById('sidebarLeft');
+        this.dom.visualization = document.getElementById('visualization');
         this.dom.totalCycles = document.getElementById('totalCycles');
         this.dom.totalNodes = document.getElementById('totalNodes');
+        this.dom.fileMenuBtn = document.getElementById('fileMenuBtn');
+        this.dom.fileDropdown = document.getElementById('fileDropdown');
+        this.dom.sidebarToggle = document.getElementById('sidebarToggle');
     }
 
     initializeEventListeners() {
         // File upload listeners
         document.getElementById('dotFile').addEventListener('change', (e) => this.handleDotFile(e));
         document.getElementById('fireLog').addEventListener('change', (e) => this.handleFireLog(e));
+
+        // File menu and reuploads
+        this.dom.fileMenuBtn?.addEventListener('click', () => this.toggleFileMenu());
+        document.getElementById('reuploadDot')?.addEventListener('click', () => this.reuploadDot());
+        document.getElementById('reuploadFireLog')?.addEventListener('click', () => this.reuploadFireLog());
+        document.getElementById('reuploadDotFile')?.addEventListener('change', (e) => this.handleDotFile(e));
+        document.getElementById('reuploadFireLogFile')?.addEventListener('change', (e) => this.handleFireLog(e));
+        
+        // Sidebar toggle
+        this.dom.sidebarToggle?.addEventListener('click', () => this.toggleSidebar());
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.dom.fileDropdown && !this.dom.fileMenuBtn.contains(e.target) && !this.dom.fileDropdown.contains(e.target)) {
+                this.dom.fileDropdown.classList.remove('show');
+            }
+        });
 
         // Playback control listeners
         document.getElementById('playBtn').addEventListener('click', () => this.play());
@@ -227,10 +252,6 @@ class DataflowVisualizer {
             container.classList.add('has-graph');
             if (loadingMsg) loadingMsg.style.display = 'none';
 
-            // Show zoom controls now that the graph is rendered
-            const zoomControls = document.querySelector('.zoom-controls');
-            if (zoomControls) zoomControls.classList.add('visible');
-
             // Get the actual SVG element that was created
             this.graphSvg = container.querySelector('svg');
             if (this.graphSvg) {
@@ -321,10 +342,7 @@ class DataflowVisualizer {
     }
 
     enableControls() {
-        this.dom.playbackControls.style.display = 'flex';
-        this.dom.executionLog.style.display = 'block';
-        this.dom.stats.style.display = 'flex';
-        
+        // Enable playback buttons
         this.dom.playBtn.disabled = false;
         this.dom.prevBtn.disabled = false;
         this.dom.nextBtn.disabled = false;
@@ -1048,6 +1066,25 @@ class DataflowVisualizer {
 
     resetZoom() {
         this.fitToView();
+    }
+
+    toggleFileMenu() {
+        this.dom.fileDropdown?.classList.toggle('show');
+    }
+
+    toggleSidebar() {
+        this.dom.sidebarLeft?.classList.toggle('collapsed');
+        this.dom.visualization?.classList.toggle('sidebar-open');
+    }
+
+    reuploadDot() {
+        this.dom.fileDropdown?.classList.remove('show');
+        document.getElementById('reuploadDotFile')?.click();
+    }
+
+    reuploadFireLog() {
+        this.dom.fileDropdown?.classList.remove('show');
+        document.getElementById('reuploadFireLogFile')?.click();
     }
 }
 

@@ -18,99 +18,157 @@
 </head>
 <body>
     <div class="container">
-        <div class="visualization">
-            <div id="graph-container">
-                <div class="loading" id="loadingMessage">
-                    <div class="modal-header">
-                        <h2>Upload Graph & Log</h2>
-                    </div>
-                    <div class="upload-grid">
-                        <div class="drop-zone" id="dotDrop">
-                            <div class="drop-title">DOT Graph (.dot)</div>
-                            <div class="drop-instructions">Drag & drop a .dot file here, or click to choose</div>
-                            <input type="file" id="dotFile" accept=".dot" style="display:none" />
-                            <div class="file-status" id="dotStatus">No file selected</div>
-                        </div>
+        <!-- Initial Upload Modal -->
+        <div class="loading" id="loadingMessage">
+            <div class="modal-header">
+                <h2>Upload Graph & Log</h2>
+            </div>
+            <div class="upload-grid">
+                <div class="drop-zone" id="dotDrop">
+                    <div class="drop-title">DOT Graph (.dot)</div>
+                    <div class="drop-instructions">Drag & drop a .dot file here, or click to choose</div>
+                    <input type="file" id="dotFile" accept=".dot" style="display:none" />
+                    <div class="file-status" id="dotStatus">No file selected</div>
+                </div>
 
-                        <div class="drop-zone" id="fireDrop">
-                            <div class="drop-title">Fire Log (.log/.txt)</div>
-                            <div class="drop-instructions">Drag & drop a fire log here, or click to choose</div>
-                            <input type="file" id="fireLog" accept=".log,.txt" style="display:none" />
-                            <div class="file-status" id="fireLogStatus">No file selected</div>
+                <div class="drop-zone" id="fireDrop">
+                    <div class="drop-title">Fire Log (.log/.txt)</div>
+                    <div class="drop-instructions">Drag & drop a fire log here, or click to choose</div>
+                    <input type="file" id="fireLog" accept=".log,.txt" style="display:none" />
+                    <div class="file-status" id="fireLogStatus">No file selected</div>
+                </div>
+            </div>
+            <div id="loadingNote" style="margin-top:12px; font-size:0.9em; color:rgba(0, 0, 0, 0.5);">Both files required — the UI will appear once finished.</div>
+            <div class="upload-footer" style="margin-top:14px;">
+                <a class="github-btn" href="https://github.com/jobitaki/wavefront" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-brands fa-github"></i>
+                    <span>View on GitHub</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Top Menu Bar -->
+        <div class="top-menu-bar" id="topMenuBar">
+            <div class="menu-section menu-left">
+                <div class="app-title">
+                    <img src="wavefront_logo.png" alt="Wavefront Logo" class="app-logo">
+                    <span>wavefront</span>
+                </div>
+                <div class="menu-group">
+                    <button class="menu-btn" id="fileMenuBtn" title="File Menu">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span>File</span>
+                    </button>
+                    <div class="file-dropdown" id="fileDropdown">
+                        <div class="dropdown-item" id="reuploadDot">
+                            <i class="fa-solid fa-file-code"></i>
+                            <span>Reupload DOT Graph</span>
                         </div>
-                    </div>
-                    <div id="loadingNote" style="margin-top:12px; font-size:0.9em; color:#666;">Both files required — the UI will appear once finished.</div>
-                    <div class="upload-footer" style="margin-top:14px;">
-                        <a class="github-btn" href="https://github.com/jobitaki/wavefront" target="_blank" rel="noopener noreferrer">
-                            <i class="fa-brands fa-github"></i>
-                            <span>View on GitHub</span>
-                        </a>
+                        <div class="dropdown-item" id="reuploadFireLog">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <span>Reupload Fire Log</span>
+                        </div>
                     </div>
                 </div>
+            </div>
+            
+            <div class="menu-section menu-center">
+                <div class="menu-group playback-group">
+                    <button class="menu-icon-btn" id="playBtn" disabled title="Play">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="pauseBtn" disabled title="Pause">
+                        <i class="fa-solid fa-pause"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="prevBtn" disabled title="Previous Cycle">
+                        <i class="fa-solid fa-step-backward"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="nextBtn" disabled title="Next Cycle">
+                        <i class="fa-solid fa-step-forward"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="resetBtn" disabled title="Reset">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </button>
+                </div>
+                
+                <div class="menu-divider"></div>
+                
+                <div class="menu-group zoom-group">
+                    <button class="menu-icon-btn" id="zoomInBtn" title="Zoom In">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="zoomOutBtn" title="Zoom Out">
+                        <i class="fa-solid fa-magnifying-glass-minus"></i>
+                    </button>
+                    <button class="menu-icon-btn" id="zoomResetBtn" title="Reset View">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                </div>
+                
+                <div class="menu-divider"></div>
+                
+                <div class="menu-group queue-group">
+                    <label class="switch">
+                        <input type="checkbox" id="queueToggleBtn" autocomplete="off">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="queue-label">Queue</span>
+                </div>
+                
+                <div class="menu-divider"></div>
+                
+                <div class="menu-group speed-group">
+                    <label class="speed-label">Speed:</label>
+                    <input type="range" id="speedSlider" min="1" max="10" value="5" step="1" />
+                    <span id="speedValue">5x</span>
+                </div>
+            </div>
+            
+            <div class="menu-section menu-right">
+                <div class="info-item">
+                    <span class="info-label">Cycle:</span>
+                    <span class="info-value" id="currentCycle">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Instructions:</span>
+                    <span class="info-value" id="cycleInstrCount">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Total Cycles:</span>
+                    <span class="info-value" id="totalCycles">0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Nodes:</span>
+                    <span class="info-value" id="totalNodes">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Left Sidebar for Execution Log -->
+        <div class="sidebar-left" id="sidebarLeft">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">Execution Log</div>
+                <div class="execution-log" id="executionLog">
+                    <!-- Execution entries will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Graph Container -->
+        <div class="visualization sidebar-open" id="visualization">
+            <div id="graph-container">
                 <svg id="graph-svg"></svg>
             </div>
         </div>
 
-        <header>
-            <h1>wavefront</h1>
-        </header>
-
-        <div class="zoom-controls">
-            <button class="zoom-btn" id="zoomInBtn" title="Zoom In"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>
-            <button class="zoom-btn" id="zoomResetBtn" title="Reset View"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
-            <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
-        </div>
-
-        <div class="stats" id="stats" style="display: none;">
-            <div class="stat-box">
-                <div class="stat-label">Total Cycles</div>
-                <div class="stat-value" id="totalCycles">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Nodes in Graph</div>
-                <div class="stat-value" id="totalNodes">0</div>
-            </div>
-        </div>
-
-        <div class="playback-controls" style="display: none;" id="playbackControls">
-            <div class="cycle-info">
-                <span class="cycle-display">Cycle: <span id="currentCycle">0</span></span>
-                <span class="cycle-display" style="margin-left: 20px;">Instructions: <span id="cycleInstrCount">0</span></span>
-            </div>
-            <button class="btn-primary" id="playBtn" disabled title="Play">
-                <i class="fa-solid fa-play" aria-hidden="true"></i>
-            </button>
-            <button class="btn-secondary" id="pauseBtn" disabled title="Pause">
-                <i class="fa-solid fa-pause" aria-hidden="true"></i>
-            </button>
-            <button class="btn-secondary" id="prevBtn" disabled title="Previous Cycle">
-                <i class="fa-solid fa-step-backward" aria-hidden="true"></i>
-            </button>
-            <button class="btn-secondary" id="nextBtn" disabled title="Next Cycle">
-                <i class="fa-solid fa-step-forward" aria-hidden="true"></i>
-            </button>
-            <button class="btn-secondary" id="resetBtn" disabled title="Reset">
-                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-            </button>
-            <div class="queue-toggle-container">
-                <label class="switch">
-                    <input type="checkbox" id="queueToggleBtn">
-                    <span class="slider"></span>
-                </label>
-                <span class="queue-toggle-label">Toggle queueing (buggy)</span>
-            </div>
-            <div class="speed-control">
-                <label for="speedSlider">Speed:</label>
-                <input type="range" id="speedSlider" min="1" max="10" value="5" step="1" />
-                <span id="speedValue">5x</span>
-            </div>
-        </div>
-
-        <div class="execution-log" id="executionLog" style="display: none;">
-            <!-- Execution entries will be added here -->
-        </div>
-
     </div>
+
+    <!-- Hidden file inputs for reuploading -->
+    <input type="file" id="reuploadDotFile" accept=".dot" style="display:none" />
+    <input type="file" id="reuploadFireLogFile" accept=".log,.txt" style="display:none" />
 
     <script src="app.js"></script>
 </body>
