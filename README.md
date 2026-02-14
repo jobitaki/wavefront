@@ -1,6 +1,8 @@
+<img src="wavefront_full.png?sanitize=true" alt="logo" width="500" /> 
+
 # wavefront
 
-Dataflow visualizer. 
+Wavefront is a web-based dataflow visualizer. It can generate cycle-by-cycle previews of tokens flowing through a dataflow graph and instructions firing. 
 
 ## Usage
 
