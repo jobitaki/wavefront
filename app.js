@@ -19,6 +19,7 @@ class DataflowVisualizer {
         this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default for performance)
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
+        this.stepSize = 1; // Default step size for prev/next navigation
         
         // Cache DOM elements for performance
         this.dom = {};
@@ -35,7 +36,6 @@ class DataflowVisualizer {
         // Cache frequently accessed DOM elements
         this.dom.graphContainer = document.getElementById('graph-container');
         this.dom.executionLog = document.getElementById('executionLog');
-        this.dom.currentCycle = document.getElementById('currentCycle');
         this.dom.cycleInstrCount = document.getElementById('cycleInstrCount');
         this.dom.playBtn = document.getElementById('playBtn');
         this.dom.pauseBtn = document.getElementById('pauseBtn');
@@ -96,6 +96,31 @@ class DataflowVisualizer {
         document.getElementById('zoomInBtn').addEventListener('click', () => this.zoomIn());
         document.getElementById('zoomOutBtn').addEventListener('click', () => this.zoomOut());
         document.getElementById('zoomResetBtn').addEventListener('click', () => this.resetZoom());
+
+        // Cycle navigation controls
+        const jumpToCycleInput = document.getElementById('jumpToCycleInput');
+        const jumpToCycleBtn = document.getElementById('jumpToCycleBtn');
+        const stepSizeInput = document.getElementById('stepSizeInput');
+        
+        jumpToCycleBtn?.addEventListener('click', () => this.jumpToCycle());
+        jumpToCycleInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.jumpToCycle();
+                e.target.blur(); // Remove focus after jumping
+            }
+        });
+        jumpToCycleInput?.addEventListener('blur', () => {
+            this.jumpToCycle();
+        });
+        
+        stepSizeInput?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            if (!isNaN(value) && value >= 1) {
+                this.stepSize = value;
+            } else {
+                e.target.value = this.stepSize;
+            }
+        });
 
         // Queue visualization toggle
         document.getElementById('queueToggleBtn').addEventListener('change', (e) => this.toggleQueueVisualization(e.target.checked));
@@ -348,6 +373,11 @@ class DataflowVisualizer {
         this.dom.nextBtn.disabled = false;
         this.dom.resetBtn.disabled = false;
         
+        // Enable cycle navigation controls
+        document.getElementById('jumpToCycleInput').disabled = false;
+        document.getElementById('jumpToCycleBtn').disabled = false;
+        document.getElementById('stepSizeInput').disabled = false;
+        
         this.reset();
     }
 
@@ -403,7 +433,7 @@ class DataflowVisualizer {
 
     previousCycle() {
         if (this.currentCycle > 0) {
-            this.currentCycle--;
+            this.currentCycle = Math.max(0, this.currentCycle - this.stepSize);
             // Rebuild queue state from scratch by replaying from cycle 0
             if (this.queueVisualizationEnabled) {
                 this.replayToCurrentCycle();
@@ -547,13 +577,39 @@ class DataflowVisualizer {
     nextCycle() {
         const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
         if (this.currentCycle < maxCycle) {
-            this.currentCycle++;
+            this.currentCycle = Math.min(maxCycle, this.currentCycle + this.stepSize);
+            this.updateVisualization();
+        }
+    }
+
+    jumpToCycle() {
+        const input = document.getElementById('jumpToCycleInput');
+        const targetCycle = parseInt(input.value);
+        
+        if (isNaN(targetCycle) || targetCycle < 0) {
+            // Reset to current cycle if invalid
+            input.value = this.currentCycle;
+            return;
+        }
+        
+        const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
+        const boundedCycle = Math.min(maxCycle, Math.max(0, targetCycle));
+        
+        this.currentCycle = boundedCycle;
+        
+        if (this.queueVisualizationEnabled) {
+            this.replayToCurrentCycle();
+        } else {
             this.updateVisualization();
         }
     }
 
     updateVisualization() {
-        this.dom.currentCycle.textContent = this.currentCycle;
+        // Update the cycle input field to show current cycle
+        const cycleInput = document.getElementById('jumpToCycleInput');
+        if (cycleInput) {
+            cycleInput.value = this.currentCycle;
+        }
         
         // Clear previous highlights and tokens
         this.clearHighlights();

@@ -291,23 +291,49 @@ input:checked + .slider:before {
     min-width: 30px;
 }
 
-/* Info Items in Menu */
-.info-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+/* Cycle Navigation Controls in Menu */
+.cycle-jump-group,
+.step-size-group {
+    gap: 8px;
 }
 
-.info-label {
+.cycle-label {
     font-size: 0.85em;
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
 }
 
-.info-value {
-    font-size: 0.9em;
+.cycle-input {
+    width: 70px;
+    height: 28px;
+    padding: 4px 8px;
+    font-size: 0.85em;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.9);
     color: #1a1a1a;
-    font-weight: 600;
-    min-width: 24px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.cycle-input:hover {
+    border-color: rgba(0, 0, 0, 0.25);
+}
+
+.cycle-input:focus {
+    border-color: #667eea;
+    background: white;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.cycle-input:disabled {
+    background: rgba(0, 0, 0, 0.03);
+    color: rgba(0, 0, 0, 0.4);
+    cursor: not-allowed;
+}
+
+.cycle-input::placeholder {
+    color: rgba(0, 0, 0, 0.4);
 }
 
 /* Left Sidebar */
@@ -369,9 +395,37 @@ input:checked + .slider:before {
     font-size: 1.1em;
     font-weight: 600;
     color: #1a1a1a;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 6px;
+}
+
+.sidebar-info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9em;
+}
+
+.sidebar-info-label {
+    color: rgba(0, 0, 0, 0.6);
+    font-weight: 500;
+}
+
+.sidebar-info-value {
+    color: #1a1a1a;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
 }
 
 /* Visualization Container */

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wavefront – Dataflow Token Visualizer</title>
+    <title>Wavefront - Dataflow Viewer</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,6 +93,23 @@
                 
                 <div class="menu-divider"></div>
                 
+                <div class="menu-group cycle-jump-group">
+                    <label class="cycle-label">Cycle:</label>
+                    <input type="number" id="jumpToCycleInput" class="cycle-input" value="0" min="0" disabled />
+                    <button class="menu-icon-btn" id="jumpToCycleBtn" disabled title="Jump to Cycle">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+                
+                <div class="menu-divider"></div>
+                
+                <div class="menu-group step-size-group">
+                    <label class="cycle-label">Step:</label>
+                    <input type="number" id="stepSizeInput" class="cycle-input" value="1" min="1" disabled />
+                </div>
+                
+                <div class="menu-divider"></div>
+                
                 <div class="menu-group zoom-group">
                     <button class="menu-icon-btn" id="zoomInBtn" title="Zoom In">
                         <i class="fa-solid fa-magnifying-glass-plus"></i>
@@ -123,25 +140,6 @@
                     <span id="speedValue">5x</span>
                 </div>
             </div>
-            
-            <div class="menu-section menu-right">
-                <div class="info-item">
-                    <span class="info-label">Cycle:</span>
-                    <span class="info-value" id="currentCycle">0</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Instructions:</span>
-                    <span class="info-value" id="cycleInstrCount">0</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Total Cycles:</span>
-                    <span class="info-value" id="totalCycles">0</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Nodes:</span>
-                    <span class="info-value" id="totalNodes">0</span>
-                </div>
-            </div>
         </div>
 
         <!-- Left Sidebar for Execution Log -->
@@ -151,6 +149,20 @@
             </button>
             <div class="sidebar-content">
                 <div class="sidebar-header">Execution Log</div>
+                <div class="sidebar-stats">
+                    <div class="sidebar-info-item">
+                        <span class="sidebar-info-label">Total Cycles:</span>
+                        <span class="sidebar-info-value" id="totalCycles">0</span>
+                    </div>
+                    <div class="sidebar-info-item">
+                        <span class="sidebar-info-label">Instructions:</span>
+                        <span class="sidebar-info-value" id="cycleInstrCount">0</span>
+                    </div>
+                    <div class="sidebar-info-item">
+                        <span class="sidebar-info-label">Nodes:</span>
+                        <span class="sidebar-info-value" id="totalNodes">0</span>
+                    </div>
+                </div>
                 <div class="execution-log" id="executionLog">
                     <!-- Execution entries will be added here -->
                 </div>
