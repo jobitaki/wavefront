@@ -277,15 +277,20 @@ class DataflowVisualizer {
     }
 
     async loadExampleFiles() {
+        console.log('Starting to load example files...');
         try {
             const loadingNote = document.getElementById('loadingNote');
+            console.log('loadingNote element:', loadingNote);
             if (loadingNote) loadingNote.textContent = 'Loading example files...';
             
             // Fetch example DOT file
+            console.log('Fetching DOT file from: examples/example_dot.dot');
             const dotResponse = await fetch('examples/example_dot.dot');
-            if (!dotResponse.ok) throw new Error('DOT file not found');
+            console.log('DOT response status:', dotResponse.status, dotResponse.ok);
+            if (!dotResponse.ok) throw new Error(`DOT file not found (${dotResponse.status})`);
             const dotContent = await dotResponse.text();
             this.dotContent = dotContent;
+            console.log('DOT file loaded, length:', dotContent.length);
             
             // Update status
             const dotStatus = document.getElementById('dotStatus');
@@ -295,10 +300,13 @@ class DataflowVisualizer {
             }
             
             // Fetch example fire log
+            console.log('Fetching fire log from: examples/fire.log');
             const logResponse = await fetch('examples/fire.log');
-            if (!logResponse.ok) throw new Error('Fire log not found');
+            console.log('Fire log response status:', logResponse.status, logResponse.ok);
+            if (!logResponse.ok) throw new Error(`Fire log not found (${logResponse.status})`);
             const logContent = await logResponse.text();
             this.parseFireLog(logContent);
+            console.log('Fire log parsed, entries:', this.fireLogData.length);
             
             // Update status
             const logStatus = document.getElementById('fireLogStatus');
@@ -308,12 +316,20 @@ class DataflowVisualizer {
             }
             
             // Render the graph
+            console.log('Rendering graph...');
             await this.checkAndRenderGraph();
             
             console.log('Example files loaded successfully');
         } catch (error) {
-            console.log('Example files not available for auto-load:', error.message);
-            // Silently fail - user can upload their own files
+            console.error('Failed to load example files:', error);
+            console.error('Error details:', error.message, error.stack);
+            
+            // Show error to user
+            const loadingNote = document.getElementById('loadingNote');
+            if (loadingNote) {
+                loadingNote.textContent = `Failed to load examples: ${error.message}. Please upload files manually.`;
+                loadingNote.style.color = '#ff6b6b';
+            }
         }
     }
 
@@ -1274,8 +1290,11 @@ class DataflowVisualizer {
 document.addEventListener('DOMContentLoaded', () => {
     window.visualizer = new DataflowVisualizer();
     
-    // Auto-load example files
-    window.visualizer.loadExampleFiles();
+    // Auto-load example files after a brief delay to ensure DOM is ready
+    setTimeout(() => {
+        console.log('Attempting to load example files...');
+        window.visualizer.loadExampleFiles();
+    }, 100);
 });
 
 // Attach drag & drop handlers for the centered upload modal
