@@ -594,7 +594,7 @@ class DataflowVisualizer {
                     const x = pt.x;
                     const y = pt.y;
                     
-                    const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                    const resIndex = this._extractResIndexFromEdgeTitle(edgeLabel, nodeName);
                     const val = this._getResValueForIndex(instr, resIndex);
                     
                     if (val !== null && val !== undefined) {
@@ -749,6 +749,7 @@ class DataflowVisualizer {
         }
     }
 
+    // Main visualization function to highlight active nodes and place tokens
     visualizeTokens(instructions) {
         if (!this.graphSvg) return;
         
@@ -813,7 +814,7 @@ class DataflowVisualizer {
                             const x = pt.x;
                             const y = pt.y;
                             
-                            const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                            const resIndex = this._extractResIndexFromEdgeTitle(edgeLabel, nodeName);
                             const val = this._getResValueForIndex(instr, resIndex);
                             
                             if (val !== null && val !== undefined) {
@@ -936,6 +937,8 @@ class DataflowVisualizer {
             const titleEl = edge.querySelector('title');
             if (!titleEl) return;
             const edgeTitle = titleEl.textContent.trim();
+            const labelEl = edge.querySelector('text');
+            const edgeLabel = labelEl ? labelEl.textContent.trim() : '';
 
             // Only consider outgoing edges from this node
             if (!edgeTitle.startsWith(nodeName + '->')) return;
@@ -950,7 +953,7 @@ class DataflowVisualizer {
 
             // For steer instructions, highlight only if this edge corresponds to a non-null res value
             if (name.includes('steer')) {
-                const resIndex = this._extractResIndexFromEdgeTitle(edgeTitle, nodeName);
+                const resIndex = this._extractResIndexFromEdgeTitle(edgeLabel, nodeName);
                 const val = this._getResValueForIndex(instr, resIndex);
                 if (val !== null && val !== undefined) {
                     edge.classList.add('highlight-edge');
@@ -1021,11 +1024,22 @@ class DataflowVisualizer {
         }
 
         // Stream instructions (e.g., riptide.stream): often produce multiple outputs
-        // Typical outputs: res[0] = data value, res[1] = predicate/flag
+        // Fire log format: last_flag start bound step offset
+        // res[0] = start + offset (loop value)
+        // res[1] = last_flag
         if (name.includes('stream')) {
-            if (!args || args.length === 0) return null;
-            const v = at(resIndex);
-            return v !== null ? v : null;
+            if (!args || args.length < 5) return null;
+            
+            if (resIndex === 0) {
+                // res[0] = start + offset
+                const start = Number(args[1]);
+                const offset = Number(args[4]);
+                return isNaN(start) || isNaN(offset) ? null : start + offset;
+            } else if (resIndex === 1) {
+                // res[1] = last_flag
+                return args[0];
+            }
+            return null;
         }
 
         // Binary arithmetic and comparisons: op0 op1 res0
@@ -1051,11 +1065,11 @@ class DataflowVisualizer {
         // Steer instructions
         if (name.includes('steer')) {
             // dataflow.steer: args: decider, data, channel_output
-            if (name.includes('dataflow.steer') && args.length >= 3) {
+            if (args.length >= 3) {
                 const channel = Number(at(2));
                 const data = at(1);
                 return (resIndex === channel) ? data : null;
-            } else if (args.length >= 3) {
+            } else if ((name.includes('true') || name.includes('false')) && args.length >= 3) {
                 // true/false steer (1-output): args: decider, data, condition_met
                 const fired = String(at(2)) !== '0' && String(at(2)).toLowerCase() !== 'false';
                 return (resIndex === 0 && fired) ? at(1) : null;

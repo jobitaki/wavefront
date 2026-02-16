@@ -520,6 +520,11 @@ input:checked + .slider:before {
     margin-top: 5px;
     font-size: 0.9em;
     color: rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-align: center;
 }
 
 .file-status.success {
