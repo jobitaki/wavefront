@@ -16,7 +16,7 @@ class DataflowVisualizer {
         this.edgeMap = new Map(); // Map edge identifier to edge element
         this.edgesBySource = new Map(); // NEW: for fast edge lookup by source node
         this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
-        this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default for performance)
+        this.queueVisualizationEnabled = true; // Toggle for queue visualization (on by default)
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         this.stepSize = 1; // Default step size for prev/next navigation
@@ -25,9 +25,9 @@ class DataflowVisualizer {
         this.dom = {};
         this.cacheDOMElements();
         
-        // Ensure queue toggle is unchecked on page load
+        // Ensure queue toggle is checked on page load
         const queueToggle = document.getElementById('queueToggleBtn');
-        if (queueToggle) queueToggle.checked = false;
+        if (queueToggle) queueToggle.checked = true;
         
         this.initializeEventListeners();
     }
