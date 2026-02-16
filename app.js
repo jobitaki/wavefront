@@ -276,6 +276,47 @@ class DataflowVisualizer {
         }
     }
 
+    async loadExampleFiles() {
+        try {
+            const loadingNote = document.getElementById('loadingNote');
+            if (loadingNote) loadingNote.textContent = 'Loading example files...';
+            
+            // Fetch example DOT file
+            const dotResponse = await fetch('examples/example_dot.dot');
+            if (!dotResponse.ok) throw new Error('DOT file not found');
+            const dotContent = await dotResponse.text();
+            this.dotContent = dotContent;
+            
+            // Update status
+            const dotStatus = document.getElementById('dotStatus');
+            if (dotStatus) {
+                dotStatus.textContent = '✓ Loaded: example_dot.dot';
+                dotStatus.className = 'file-status success';
+            }
+            
+            // Fetch example fire log
+            const logResponse = await fetch('examples/fire.log');
+            if (!logResponse.ok) throw new Error('Fire log not found');
+            const logContent = await logResponse.text();
+            this.parseFireLog(logContent);
+            
+            // Update status
+            const logStatus = document.getElementById('fireLogStatus');
+            if (logStatus) {
+                logStatus.textContent = `✓ Loaded: fire.log (${this.fireLogData.length} entries)`;
+                logStatus.className = 'file-status success';
+            }
+            
+            // Render the graph
+            await this.checkAndRenderGraph();
+            
+            console.log('Example files loaded successfully');
+        } catch (error) {
+            console.log('Example files not available for auto-load:', error.message);
+            // Silently fail - user can upload their own files
+        }
+    }
+
     parseFireLog(content) {
         // Parse fire.log format: [cycle] (instruction_id) instruction_name [args...]
         // Note: Arguments are split on whitespace. If arguments contain spaces,
@@ -1232,7 +1273,9 @@ class DataflowVisualizer {
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.visualizer = new DataflowVisualizer();
-
+    
+    // Auto-load example files
+    window.visualizer.loadExampleFiles();
 });
 
 // Attach drag & drop handlers for the centered upload modal
