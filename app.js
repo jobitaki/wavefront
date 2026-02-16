@@ -873,19 +873,19 @@ class DataflowVisualizer {
                 }
 
                 // fallback: place token at node center if no outgoing edge or placement failed
-                if (!placed) {
-                    const ellipse = node.querySelector('ellipse, polygon, rect');
-                    if (ellipse) {
-                        const bbox = ellipse.getBBox();
-                        const cx = bbox.x + bbox.width / 2;
-                        const cy = bbox.y + bbox.height / 2;
+                // if (!placed) {
+                //     const ellipse = node.querySelector('ellipse, polygon, rect');
+                //     if (ellipse) {
+                //         const bbox = ellipse.getBBox();
+                //         const cx = bbox.x + bbox.width / 2;
+                //         const cy = bbox.y + bbox.height / 2;
 
-                        const val = (instr.args && instr.args.length) ? instr.args[0] : '';
-                        const gToken = this._createTokenElement(cx, cy, val);
-                        gToken.classList.add('transient-token');
-                        fragment.appendChild(gToken);
-                    }
-                }
+                //         const val = (instr.args && instr.args.length) ? instr.args[0] : '';
+                //         const gToken = this._createTokenElement(cx, cy, val);
+                //         gToken.classList.add('transient-token');
+                //         fragment.appendChild(gToken);
+                //     }
+                // }
             } else {
                 console.warn(`✗ No node found for instruction ID ${instr.instructionId} (${instr.instructionName})`);
             }
@@ -1036,8 +1036,9 @@ class DataflowVisualizer {
                 const offset = Number(args[4]);
                 return isNaN(start) || isNaN(offset) ? null : start + offset;
             } else if (resIndex === 1) {
-                // res[1] = last_flag
-                return args[0];
+                // res[1] = last_flag but reverse it
+                const lastFlag = args[0];
+                return lastFlag === 'true' ? 'false' : 'true';
             }
             return null;
         }
@@ -1064,15 +1065,15 @@ class DataflowVisualizer {
 
         // Steer instructions
         if (name.includes('steer')) {
-            // dataflow.steer: args: decider, data, channel_output
-            if (args.length >= 3) {
+            if ((name.includes('true') || name.includes('false')) && args.length >= 3) {
+                // true/false steer (1-output): args: decider, data, condition_met
+                const fired = String(at(2)).toLowerCase() !== 'false';
+                return (resIndex === 0 && fired) ? at(1) : null;
+            } else if (args.length >= 3) {
+                // dataflow.steer: args: decider, data, channel_output
                 const channel = Number(at(2));
                 const data = at(1);
                 return (resIndex === channel) ? data : null;
-            } else if ((name.includes('true') || name.includes('false')) && args.length >= 3) {
-                // true/false steer (1-output): args: decider, data, condition_met
-                const fired = String(at(2)) !== '0' && String(at(2)).toLowerCase() !== 'false';
-                return (resIndex === 0 && fired) ? at(1) : null;
             }
         }
 
