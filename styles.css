@@ -187,6 +187,69 @@ body {
     width: 16px;
 }
 
+/* Search Bar */
+.search-group {
+    margin-left: 8px;
+}
+
+.search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    padding: 6px 10px;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.search-container:focus-within {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+}
+
+.search-icon {
+    color: rgba(0, 0, 0, 0.5);
+    font-size: 0.85em;
+}
+
+.search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    color: rgba(0, 0, 0, 0.85);
+    font-size: 0.85em;
+    width: 200px;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.search-input::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+}
+
+.search-clear-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 50%;
+    transition: all 0.2s;
+    font-size: 0.85em;
+}
+
+.search-clear-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.75);
+}
+
+.search-clear-btn.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Queue Toggle in Menu */
 .queue-group {
     gap: 8px;
@@ -737,6 +800,40 @@ g.edge polygon {
     fill: #ffd700 !important;
     transition: stroke 0.2s ease, fill 0.2s ease, opacity 0.2s ease;
     will-change: opacity, fill, stroke;
+}
+
+/* Search Highlight - Blue Glow */
+.search-highlight-node {
+    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 1)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.8));
+    transition: opacity 0.2s ease, filter 0.3s ease;
+    will-change: opacity, filter;
+}
+
+.search-highlight-node ellipse,
+.search-highlight-node polygon,
+.search-highlight-node rect,
+.search-highlight-node circle {
+    fill: #dbeafe !important;
+    stroke: #3b82f6 !important;
+    stroke-width: 4 !important;
+    transition: fill 0.2s ease, stroke 0.2s ease, stroke-width 0.2s ease;
+}
+
+.search-highlight-token {
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.9)) drop-shadow(0 0 18px rgba(59, 130, 246, 0.6));
+    transition: filter 0.3s ease;
+    will-change: filter;
+}
+
+.search-highlight-token .token-circle {
+    fill: #3b82f6 !important;
+    stroke: #1e40af !important;
+    stroke-width: 2 !important;
+}
+
+.search-highlight-token .token-text {
+    fill: white !important;
+    font-weight: bold;
 }
 
 .instructions-panel {

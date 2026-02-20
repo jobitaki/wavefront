@@ -20,6 +20,8 @@ class DataflowVisualizer {
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         this.stepSize = 1; // Default step size for prev/next navigation
+        this.searchDebounceTimer = null; // Debounce timer for search
+        this.searchTerm = ''; // Current search term
         
         // Cache DOM elements for performance
         this.dom = {};
@@ -124,6 +126,18 @@ class DataflowVisualizer {
 
         // Queue visualization toggle
         document.getElementById('queueToggleBtn').addEventListener('change', (e) => this.toggleQueueVisualization(e.target.checked));
+
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const searchClearBtn = document.getElementById('searchClearBtn');
+        
+        searchInput?.addEventListener('input', (e) => this.handleSearchInput(e.target.value));
+        searchClearBtn?.addEventListener('click', () => {
+            if (searchInput) {
+                searchInput.value = '';
+                this.handleSearchInput('');
+            }
+        });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -742,6 +756,11 @@ class DataflowVisualizer {
         
         // Highlight active nodes and show tokens
         this.visualizeTokens(instructions);
+        
+        // Re-apply search highlights if there's an active search
+        if (this.searchTerm) {
+            this.performSearch(this.searchTerm);
+        }
     }
 
     clearHighlights() {
@@ -1273,6 +1292,94 @@ class DataflowVisualizer {
     reuploadFireLog() {
         this.dom.fileDropdown?.classList.remove('show');
         document.getElementById('reuploadFireLogFile')?.click();
+    }
+
+    // Search functionality with debouncing
+    handleSearchInput(value) {
+        const searchClearBtn = document.getElementById('searchClearBtn');
+        
+        // Show/hide clear button
+        if (value.trim()) {
+            searchClearBtn?.classList.add('show');
+        } else {
+            searchClearBtn?.classList.remove('show');
+        }
+        
+        // Clear existing debounce timer
+        if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+        }
+        
+        // Set new debounce timer (300ms delay)
+        this.searchDebounceTimer = setTimeout(() => {
+            this.performSearch(value.trim());
+        }, 300);
+    }
+
+    performSearch(searchTerm) {
+        this.searchTerm = searchTerm.toLowerCase();
+        
+        // Clear all previous highlights
+        this.clearSearchHighlights();
+        
+        // If search is empty, just return
+        if (!searchTerm) {
+            return;
+        }
+        
+        if (!this.graphSvg) {
+            return;
+        }
+        
+        // Search through nodes (instructions)
+        this.nodeMap.forEach((node, instructionId) => {
+            const nodeName = this.nodeIdToName.get(instructionId) || '';
+            const textElements = node.querySelectorAll('text, tspan');
+            let matchFound = false;
+            
+            // Check node name
+            if (nodeName.toLowerCase().includes(this.searchTerm)) {
+                matchFound = true;
+            }
+            
+            // Check all text content in the node
+            textElements.forEach(textEl => {
+                const text = textEl.textContent.trim().toLowerCase();
+                if (text.includes(this.searchTerm)) {
+                    matchFound = true;
+                }
+            });
+            
+            // Highlight matching nodes
+            if (matchFound) {
+                node.classList.add('search-highlight-node');
+            }
+        });
+        
+        // Search through visible tokens
+        const tokens = this.graphSvg.querySelectorAll('.token, .queued-token, .transient-token');
+        tokens.forEach(token => {
+            const tokenText = token.querySelector('.token-text');
+            if (tokenText) {
+                const text = tokenText.textContent.trim().toLowerCase();
+                if (text.includes(this.searchTerm)) {
+                    token.classList.add('search-highlight-token');
+                }
+            }
+        });
+    }
+
+    clearSearchHighlights() {
+        if (!this.graphSvg) return;
+        
+        // Remove all search highlight classes
+        this.graphSvg.querySelectorAll('.search-highlight-node').forEach(el => {
+            el.classList.remove('search-highlight-node');
+        });
+        
+        this.graphSvg.querySelectorAll('.search-highlight-token').forEach(el => {
+            el.classList.remove('search-highlight-token');
+        });
     }
 }
 
