@@ -616,7 +616,10 @@ class DataflowVisualizer {
             if (!nodeName) return;
 
             // Pop the head of each input queue when instruction fires
-            if (this.queuedTokens.has(nodeName)) {
+            // Special rule for stream: only pop inputs when last_flag is true
+            const shouldPopInputs = this._shouldPopInputTokens(instr);
+            
+            if (shouldPopInputs && this.queuedTokens.has(nodeName)) {
                 const inputQueues = this.queuedTokens.get(nodeName);
                 inputQueues.forEach((queueData, key) => {
                     if (queueData.tokens && queueData.tokens.length > 0) {
@@ -832,7 +835,10 @@ class DataflowVisualizer {
                 // Only process queues if queue visualization is enabled
                 if (this.queueVisualizationEnabled) {
                     // When instruction fires, pop the head of each input queue and reposition remaining
-                    if (nodeName && this.queuedTokens.has(nodeName)) {
+                    // Special rule for stream: only pop inputs when last_flag is true
+                    const shouldPopInputs = this._shouldPopInputTokens(instr);
+                    
+                    if (shouldPopInputs && nodeName && this.queuedTokens.has(nodeName)) {
                         const inputQueues = this.queuedTokens.get(nodeName);
                         inputQueues.forEach((queueData, key) => {
                             if (queueData.tokens && queueData.tokens.length > 0) {
@@ -1033,6 +1039,24 @@ class DataflowVisualizer {
         });
     }
 
+    // Check if input tokens should be popped for this instruction
+    // For stream instructions, only pop when last_flag is true
+    _shouldPopInputTokens(instr) {
+        if (!instr || !instr.instructionName) return true;
+        
+        const name = instr.instructionName.toLowerCase();
+        const args = instr.args || [];
+        
+        // For stream instructions, only pop inputs when last_flag (args[0]) is 'true'
+        if (name.includes('stream')) {
+            const lastFlag = args[0];
+            return lastFlag === 'true';
+        }
+        
+        // For all other instructions, pop inputs normally
+        return true;
+    }
+
     // Try to extract res index from an edge title. Edge titles vary; attempt several patterns.
     _extractResIndexFromEdgeTitle(edgeTitle, nodeName) {
         // Robust extraction of res index from edge title.
@@ -1095,15 +1119,25 @@ class DataflowVisualizer {
         // res[1] = last_flag
         if (name.includes('stream')) {
             if (!args || args.length < 5) return null;
-            
+
+            const lastFlag = args[0];
+            // If this is the final element in the stream, only emit the 'false' decider token
+            // and suppress any idx (res[0]) tokens.
+            if (lastFlag === 'true') {
+                if (resIndex === 1) {
+                    return 'false';
+                }
+                return null;
+            }
+
+            // Normal behavior for non-last elements
             if (resIndex === 0) {
                 // res[0] = start + offset
                 const start = Number(args[1]);
                 const offset = Number(args[4]);
                 return isNaN(start) || isNaN(offset) ? null : start + offset;
             } else if (resIndex === 1) {
-                // res[1] = last_flag but reverse it
-                const lastFlag = args[0];
+                // res[1] = last_flag but reversed (keeps previous behavior for non-last)
                 return lastFlag === 'true' ? 'false' : 'true';
             }
             return null;
