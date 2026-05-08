@@ -18,6 +18,7 @@ class DataflowVisualizer {
         this.edgeList = [];                  // pure-data edge descriptors for the queue engine
         this.edgesByTargetInput = new Map(); // "targetName:inputKey" → SVG edge element
         this.fireLogFileKey = null;           // stable file identity key for snapshot cache
+        this.fireLogRawText = null;            // raw fire log text (for embedding in .wavesnap)
         this.queueEngine = new QueueStateEngine({ snapshotInterval: 10 });
         this.pendingWavesnapBuffer = null;     // .wavesnap loaded before fire log key is known
         this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
@@ -243,17 +244,19 @@ class DataflowVisualizer {
 
     async parseFireLogChunked(file, statusEl) {
         this.fireLogData = [];
+        this.fireLogRawText = '';
         this.cycleData.clear();
         
         const chunkSize = 1024 * 1024; // 1MB chunks
         const fileSize = file.size;
         let offset = 0;
-        let partialLine = '';
+        let partialLine = ''
         const fireLogRegex = /^\[(\d+)\]\s+\((\d+)\)\s+(\S+)(.*)$/;
         
         while (offset < fileSize) {
             const chunk = file.slice(offset, offset + chunkSize);
             const text = await this.readFile(chunk);
+            this.fireLogRawText += text;
             
             // Combine with any partial line from previous chunk
             const fullText = partialLine + text;
@@ -356,6 +359,7 @@ class DataflowVisualizer {
         // Parse fire.log format: [cycle] (instruction_id) instruction_name [args...]
         // Note: Arguments are split on whitespace. If arguments contain spaces,
         // they will be split into multiple elements. This matches the fire.log format.
+        this.fireLogRawText = content;
         const lines = content.trim().split('\n');
         this.fireLogData = [];
         this.cycleData.clear();
@@ -402,7 +406,7 @@ class DataflowVisualizer {
                 const buf = this.pendingWavesnapBuffer;
                 this.pendingWavesnapBuffer = null;
                 this.queueEngine.importFromBuffer(buf, this.fireLogFileKey)
-                    .then(ok => { if (ok) this._setExportEnabled(true); })
+                    .then(result => { if (result.ok) this._setExportEnabled(true); })
                     .catch(() => {});
             }
         }
@@ -568,25 +572,27 @@ class DataflowVisualizer {
     async _buildQueueSnapshots() {
         if (!this.fireLogFileKey || !this.edgeList.length) return;
 
-        // Already have matching snapshots (e.g. from an imported .wavesnap).
-        if (this.queueEngine.ready && this.queueEngine._fileKey === this.fireLogFileKey) {
-            this._setExportEnabled(true);
-            return;
-        }
+        // Determine whether snapshot computation can be skipped.
+        // Even if snapshots exist, build() must run to populate _cycleData,
+        // _bySource, and _nodeIdToName which getPreCycleState needs for replay.
+        const alreadyReady = this.queueEngine.ready &&
+                             this.queueEngine._fileKey === this.fireLogFileKey;
 
         const progressEl = document.getElementById('snapshotProgress');
         const barEl      = document.getElementById('snapshotProgressBar');
         const labelEl    = document.getElementById('snapshotProgressLabel');
 
-        // Show progress bar and disable jump controls.
-        this._setJumpControlsDisabled(true);
-        if (progressEl) {
-            progressEl.style.display = 'flex';
-            barEl.style.setProperty('--pct', '0%');
-            labelEl.textContent = '0%';
+        if (!alreadyReady) {
+            // Show progress bar and disable jump controls.
+            this._setJumpControlsDisabled(true);
+            if (progressEl) {
+                progressEl.style.display = 'flex';
+                barEl.style.setProperty('--pct', '0%');
+                labelEl.textContent = '0%';
+            }
         }
 
-        const onProgress = (cycle, maxCycle) => {
+        const onProgress = alreadyReady ? null : (cycle, maxCycle) => {
             if (!progressEl) return;
             const pct = maxCycle > 0 ? Math.round((cycle / maxCycle) * 100) : 0;
             barEl.style.setProperty('--pct', `${pct}%`);
@@ -601,14 +607,13 @@ class DataflowVisualizer {
             onProgress
         );
 
-        // Show 100%, pause briefly, then hide.
-        if (progressEl) {
+        if (!alreadyReady && progressEl) {
             barEl.style.setProperty('--pct', '100%');
             labelEl.textContent = '100%';
             await new Promise(r => setTimeout(r, 300));
             progressEl.style.display = 'none';
+            this._setJumpControlsDisabled(false);
         }
-        this._setJumpControlsDisabled(false);
         this._setExportEnabled(true);
     }
 
@@ -632,7 +637,7 @@ class DataflowVisualizer {
         this.dom.fileDropdown?.classList.remove('show');
         if (!this.queueEngine.ready) return;
         try {
-            const blob = await this.queueEngine.exportToBlob();
+            const blob = await this.queueEngine.exportToBlob(this.dotContent, this.fireLogRawText);
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
             a.href     = url;
@@ -650,8 +655,8 @@ class DataflowVisualizer {
         if (!file) return;
         try {
             const buf = await file.arrayBuffer();
-            const ok  = await this.queueEngine.importFromBuffer(buf, this.fireLogFileKey);
-            if (ok) {
+            const result = await this.queueEngine.importFromBuffer(buf, this.fireLogFileKey);
+            if (result.ok) {
                 console.log('[App] Snapshot file loaded — queue engine is ready.');
                 this._setExportEnabled(true);
             } else {
@@ -671,20 +676,47 @@ class DataflowVisualizer {
         const statusEl = document.getElementById('wavesnapStatus');
         try {
             const buf = await file.arrayBuffer();
-            // If we already have the fire log key, try to import immediately.
-            if (this.fireLogFileKey) {
-                const ok = await this.queueEngine.importFromBuffer(buf, this.fireLogFileKey);
-                if (ok) {
-                    if (statusEl) { statusEl.textContent = `✓ ${file.name}`; statusEl.className = 'file-status wavesnap-status success'; }
-                    this._setExportEnabled(true);
-                    return;
-                }
-                if (statusEl) { statusEl.textContent = '✗ Did not match fire log'; statusEl.className = 'file-status wavesnap-status error'; }
+
+            // Try to import, skipping the key check initially so we can see
+            // whether the archive is self-contained (has embedded dot + fireLog).
+            const result = await this.queueEngine.importFromBuffer(buf, null);
+
+            if (!result.ok) {
+                if (statusEl) { statusEl.textContent = '✗ Invalid .wavesnap file'; statusEl.className = 'file-status wavesnap-status error'; }
                 return;
             }
-            // Fire log not loaded yet — store for later consumption in _buildQueueSnapshots.
+
+            // Self-contained archive: bootstrap the full visualisation from it.
+            if (result.dot && result.fireLog) {
+                this.dotContent = result.dot;
+                this.parseFireLog(result.fireLog);
+                this.fireLogFileKey = result.fileKey;
+                if (statusEl) { statusEl.textContent = `✓ ${file.name}`; statusEl.className = 'file-status wavesnap-status success'; }
+                const dotStatus = document.getElementById('dotStatus');
+                const fireStatus = document.getElementById('fireLogStatus');
+                if (dotStatus)  { dotStatus.textContent  = '✓ Loaded from .wavesnap'; dotStatus.className  = 'file-status success'; }
+                if (fireStatus) { fireStatus.textContent = '✓ Loaded from .wavesnap'; fireStatus.className = 'file-status success'; }
+                this._setExportEnabled(true);
+                await this.checkAndRenderGraph();
+                return;
+            }
+
+            // Archive without embedded files — behave as before:
+            // if fire log is already loaded and the key matches, accept it;
+            // otherwise stash as pending.
+            if (this.fireLogFileKey) {
+                if (result.fileKey === this.fireLogFileKey) {
+                    if (statusEl) { statusEl.textContent = `✓ ${file.name}`; statusEl.className = 'file-status wavesnap-status success'; }
+                    this._setExportEnabled(true);
+                } else {
+                    if (statusEl) { statusEl.textContent = '✗ Did not match fire log'; statusEl.className = 'file-status wavesnap-status error'; }
+                    this.queueEngine.ready = false;
+                }
+                return;
+            }
+            // Fire log not yet loaded — stash buffer for later.
             this.pendingWavesnapBuffer = buf;
-            if (statusEl) { statusEl.textContent = `✓ ${file.name} (pending)`; statusEl.className = 'file-status wavesnap-status success'; }
+            if (statusEl) { statusEl.textContent = `✓ ${file.name} (pending fire log)`; statusEl.className = 'file-status wavesnap-status success'; }
         } catch (e) {
             console.error('[App] Failed to read wavesnap file:', e);
             if (statusEl) { statusEl.textContent = '✗ Read error'; statusEl.className = 'file-status wavesnap-status error'; }
@@ -804,14 +836,12 @@ class DataflowVisualizer {
     toggleQueueVisualization(checked) {
         this.queueVisualizationEnabled = checked;
         if (this.queueVisualizationEnabled) {
-            if (!this.queueEngine.ready) {
-                // Build snapshots with progress bar, then render queues.
-                this._buildQueueSnapshots()
-                    .then(() => this.replayToCurrentCycle())
-                    .catch(e => console.warn('[QueueEngine] Snapshot build failed:', e));
-            } else {
-                this.replayToCurrentCycle();
-            }
+            // Always go through _buildQueueSnapshots so that build() populates
+            // _cycleData / _bySource / _nodeIdToName even when snapshots were
+            // restored from a .wavesnap file (where build() was never called).
+            this._buildQueueSnapshots()
+                .then(() => this.replayToCurrentCycle())
+                .catch(e => console.warn('[QueueEngine] Snapshot build failed:', e));
         } else {
             // Clear all queued tokens and overlays
             if (this.graphSvg) {

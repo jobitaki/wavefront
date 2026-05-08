@@ -299,17 +299,24 @@ class QueueStateEngine {
     // ─── Export / Import ───────────────────────────────────────────────────────
 
     /**
-     * Serialise the current snapshot set to a gzip-compressed Blob for download.
-     * The resulting file can be reloaded with importFromBuffer().
+     * Serialise the current snapshot set (plus optional source files) to a
+     * gzip-compressed Blob for download.  When dot and fireLog are supplied the
+     * resulting .wavesnap is fully self-contained — no other files are needed
+     * to reconstruct the visualisation.
+     *
+     * @param {string|null} dot      Raw DOT graph text.
+     * @param {string|null} fireLog  Raw fire-log text.
      */
-    async exportToBlob() {
+    async exportToBlob(dot = null, fireLog = null) {
         if (!this.ready) throw new Error('Snapshots not ready — wait for build() to finish.');
         const payload = JSON.stringify({
             v:                1,
             fileKey:          this._fileKey,
             snapshotInterval: this.snapshotInterval,
             maxCycle:         this.maxCycle,
-            snapshots:        Object.fromEntries(this.snapshots)
+            snapshots:        Object.fromEntries(this.snapshots),
+            dot:              dot   ?? undefined,
+            fireLog:          fireLog ?? undefined
         });
         const bytes = new TextEncoder().encode(payload);
         const cs    = new CompressionStream('gzip');
@@ -325,11 +332,16 @@ class QueueStateEngine {
      * Call this before (or after) build() — if the fileKey matches the currently
      * loaded fire log, build() will skip recomputation.
      *
+     * When expectedFileKey is null the key check is skipped (useful when loading
+     * a self-contained .wavesnap before any fire log has been opened).
+     *
      * @param  {ArrayBuffer} buffer
-     * @param  {string}      expectedFileKey  The key of the currently loaded fire log.
-     * @returns {Promise<boolean>}  true if the snapshot file matched and was loaded.
+     * @param  {string|null} expectedFileKey  Key of the currently loaded fire log,
+     *                                        or null to accept any.
+     * @returns {Promise<{ok:boolean, dot:string|null, fireLog:string|null, fileKey:string}>}
      */
-    async importFromBuffer(buffer, expectedFileKey) {
+    async importFromBuffer(buffer, expectedFileKey = null) {
+        const FAIL = { ok: false, dot: null, fireLog: null, fileKey: '' };
         try {
             const ds     = new DecompressionStream('gzip');
             const writer = ds.writable.getWriter();
@@ -337,7 +349,8 @@ class QueueStateEngine {
             writer.close();
             const text = await new Response(ds.readable).text();
             const data = JSON.parse(text);
-            if (data.v !== 1 || data.fileKey !== expectedFileKey) return false;
+            if (data.v !== 1) return FAIL;
+            if (expectedFileKey !== null && data.fileKey !== expectedFileKey) return FAIL;
             this.snapshots = new Map(
                 Object.entries(data.snapshots).map(([k, v]) => [parseInt(k, 10), v])
             );
@@ -345,10 +358,10 @@ class QueueStateEngine {
             this.maxCycle  = data.maxCycle;
             this.ready     = true;
             console.log(`[QueueEngine] Imported ${this.snapshots.size} snapshots from file.`);
-            return true;
+            return { ok: true, dot: data.dot ?? null, fireLog: data.fireLog ?? null, fileKey: data.fileKey };
         } catch (e) {
             console.error('[QueueEngine] importFromBuffer failed:', e);
-            return false;
+            return FAIL;
         }
     }
 

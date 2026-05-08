@@ -569,7 +569,7 @@ input:checked + .slider:before {
 .sidebar-info-value {
     color: #1a1a1a;
     font-weight: 600;
-    font-family: 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
 }
 
 /* Visualization Container */
@@ -864,7 +864,7 @@ input:checked + .slider:before {
     fill: #ffffff;
     font-size: 9px;
     font-weight: 600;
-    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-family: 'IBM Plex Mono', monospace;
     text-anchor: middle;
     dominant-baseline: central;
     pointer-events: none;
@@ -1014,12 +1014,12 @@ g.edge polygon {
     flex: 1;
     overflow-y: auto;
     background: rgba(240, 240, 240, 0.9);
-    color: #00aa00;
-    font-family: 'Courier New', monospace;
+    color: rgba(55, 70, 160, 0.85);
+    font-family: 'IBM Plex Mono', monospace;
     padding: 12px;
     border-radius: 6px;
     font-size: 0.8em;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(102, 126, 234, 0.2);
 }
 
 .execution-log-entry {
@@ -1028,9 +1028,9 @@ g.edge polygon {
 }
 
 .execution-log-entry.current {
-    background: #d4edda;
+    background: rgba(102, 126, 234, 0.12);
     font-weight: bold;
-    color: #155724;
+    color: rgba(55, 70, 160, 1);
 }
 
 .loading {
