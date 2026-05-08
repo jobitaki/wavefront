@@ -38,7 +38,18 @@
                     <div class="file-status" id="fireLogStatus">No file selected</div>
                 </div>
             </div>
-            <div id="loadingNote" style="margin-top:12px; font-size:0.9em; color:rgba(0, 0, 0, 0.5);">Both files required — the UI will appear once finished.</div>
+            <div class="wavesnap-zone" id="wavesnapDrop">
+                <input type="file" id="wavesnapFile" accept=".wavesnap" style="display:none" />
+                <div class="wavesnap-zone-inner">
+                    <i class="fa-solid fa-fish wavesnap-icon"></i>
+                    <div class="wavesnap-text">
+                        <span class="wavesnap-title">.wavesnap <span class="wavesnap-optional">(optional)</span></span>
+                        <span class="wavesnap-hint">Load a .wavesnap file to skip snapshot building</span>
+                        <div class="file-status wavesnap-status" id="wavesnapStatus">No snapshot loaded</div>
+                    </div>
+                </div>
+            </div>
+            <div id="loadingNote" style="margin-top:10px; font-size:0.9em; color:rgba(0, 0, 0, 0.5);">DOT and fire log files required — the UI will appear once finished.</div>
             <div class="upload-footer" style="margin-top:14px; display:flex; gap:16px; align-items:center;">
                 <button class="example-btn" id="loadExampleBtn">
                     <i class="fa-solid fa-file-arrow-down"></i>
@@ -61,7 +72,7 @@
                 <div class="menu-group">
                     <button class="menu-btn" id="fileMenuBtn" title="File Menu">
                         <i class="fa-solid fa-folder-open"></i>
-                        <span>File</span>
+                        <!-- <span>File</span> -->
                     </button>
                     <div class="file-dropdown" id="fileDropdown">
                         <div class="dropdown-item" id="reuploadDot">
@@ -71,6 +82,15 @@
                         <div class="dropdown-item" id="reuploadFireLog">
                             <i class="fa-solid fa-file-lines"></i>
                             <span>Reupload Fire Log</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-item disabled" id="exportSnapshotsItem" title="Build snapshots first by loading a fire log">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                            <span>Export .wavesnap</span>
+                        </div>
+                        <div class="dropdown-item" id="importSnapshotsItem">
+                            <i class="fa-solid fa-file-arrow-up"></i>
+                            <span>Import .wavesnap</span>
                         </div>
                     </div>
                 </div>
@@ -143,6 +163,10 @@
                         <span class="slider"></span>
                     </label>
                     <span class="queue-label">Queue</span>
+                    <div class="snapshot-progress" id="snapshotProgress" style="display:none">
+                        <div class="snapshot-progress-bar" id="snapshotProgressBar"></div>
+                        <span class="snapshot-progress-label" id="snapshotProgressLabel">0%</span>
+                    </div>
                 </div>
                 
                 <div class="menu-divider"></div>
@@ -168,7 +192,7 @@
                         <span class="sidebar-info-value" id="totalCycles">0</span>
                     </div>
                     <div class="sidebar-info-item">
-                        <span class="sidebar-info-label">Instructions:</span>
+                        <span class="sidebar-info-label">Instructions Fired:</span>
                         <span class="sidebar-info-value" id="cycleInstrCount">0</span>
                     </div>
                     <div class="sidebar-info-item">
@@ -194,7 +218,9 @@
     <!-- Hidden file inputs for reuploading -->
     <input type="file" id="reuploadDotFile" accept=".dot" style="display:none" />
     <input type="file" id="reuploadFireLogFile" accept=".log,.txt" style="display:none" />
+    <input type="file" id="importSnapshotFile" accept=".wavesnap" style="display:none" />
 
+    <script src="queue-engine.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

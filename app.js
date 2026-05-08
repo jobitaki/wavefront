@@ -14,9 +14,14 @@ class DataflowVisualizer {
         this.nodeMap = new Map(); // Map instruction ID to node element
         this.nodeIdToName = new Map(); // Map instruction ID to node name (from DOT file)
         this.edgeMap = new Map(); // Map edge identifier to edge element
-        this.edgesBySource = new Map(); // NEW: for fast edge lookup by source node
+        this.edgesBySource = new Map(); // for fast edge lookup by source node
+        this.edgeList = [];                  // pure-data edge descriptors for the queue engine
+        this.edgesByTargetInput = new Map(); // "targetName:inputKey" → SVG edge element
+        this.fireLogFileKey = null;           // stable file identity key for snapshot cache
+        this.queueEngine = new QueueStateEngine({ snapshotInterval: 10 });
+        this.pendingWavesnapBuffer = null;     // .wavesnap loaded before fire log key is known
         this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
-        this.queueVisualizationEnabled = true; // Toggle for queue visualization (on by default)
+        this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default)
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         this.stepSize = 1; // Default step size for prev/next navigation
@@ -27,9 +32,9 @@ class DataflowVisualizer {
         this.dom = {};
         this.cacheDOMElements();
         
-        // Ensure queue toggle is checked on page load
+        // Ensure queue toggle is unchecked on page load
         const queueToggle = document.getElementById('queueToggleBtn');
-        if (queueToggle) queueToggle.checked = true;
+        if (queueToggle) queueToggle.checked = false;
         
         this.initializeEventListeners();
     }
@@ -66,6 +71,12 @@ class DataflowVisualizer {
         document.getElementById('reuploadFireLog')?.addEventListener('click', () => this.reuploadFireLog());
         document.getElementById('reuploadDotFile')?.addEventListener('change', (e) => this.handleDotFile(e));
         document.getElementById('reuploadFireLogFile')?.addEventListener('change', (e) => this.handleFireLog(e));
+        document.getElementById('exportSnapshotsItem')?.addEventListener('click', () => this._exportSnapshots());
+        document.getElementById('importSnapshotsItem')?.addEventListener('click', () => {
+            this.dom.fileDropdown?.classList.remove('show');
+            document.getElementById('importSnapshotFile')?.click();
+        });
+        document.getElementById('importSnapshotFile')?.addEventListener('change', (e) => this._handleSnapshotFile(e));
         
         // Sidebar toggle
         this.dom.sidebarToggle?.addEventListener('click', () => this.toggleSidebar());
@@ -210,6 +221,7 @@ class DataflowVisualizer {
             statusEl.textContent = `✓ Loaded: ${file.name} (${this.fireLogData.length} entries)`;
             statusEl.className = 'file-status success';
             
+            this.fireLogFileKey = `${file.name}:${file.size}:${file.lastModified}`;
             this.checkAndRenderGraph();
         } catch (error) {
             statusEl.textContent = `✗ Error loading file: ${error.message}`;
@@ -313,6 +325,7 @@ class DataflowVisualizer {
             if (!logResponse.ok) throw new Error(`Fire log not found (${logResponse.status})`);
             const logContent = await logResponse.text();
             this.parseFireLog(logContent);
+            this.fireLogFileKey = `example:fire.log:${logContent.length}`;
             
             // Update status
             const logStatus = document.getElementById('fireLogStatus');
@@ -380,6 +393,16 @@ class DataflowVisualizer {
             await this.renderGraph();
             this.enableControls();
             this.updateStats();
+            // Snapshots are built on demand when the user enables the Queue toggle.
+            // If a .wavesnap was pre-loaded, try to import it silently now so it
+            // is ready before the toggle is ever flipped.
+            if (this.pendingWavesnapBuffer && this.fireLogFileKey) {
+                const buf = this.pendingWavesnapBuffer;
+                this.pendingWavesnapBuffer = null;
+                this.queueEngine.importFromBuffer(buf, this.fireLogFileKey)
+                    .then(ok => { if (ok) this._setExportEnabled(true); })
+                    .catch(() => {});
+            }
         }
     }
 
@@ -468,7 +491,9 @@ class DataflowVisualizer {
     buildEdgeMap() {
         // Find all edges in the SVG
         this.edgeMap.clear();
-        this.edgesBySource.clear(); // Clear the existing map for rebuild
+        this.edgesBySource.clear();
+        this.edgeList = [];
+        this.edgesByTargetInput = new Map();
 
         if (!this.graphSvg) return;
 
@@ -479,20 +504,36 @@ class DataflowVisualizer {
                 const edgeId = titleEl.textContent;
                 this.edgeMap.set(edgeId, edge);
                 this.edgeMap.set(index, edge); // Also store by index for fallback
-                
-                // NEW: Extract source node name and index edge by source
+
+                // Index by source name for fast outgoing-edge lookup
                 const match = edgeId.match(/^([^-:>\s]+)/);
                 if (match) {
                     const sourceName = match[1];
-                    if (!this.edgesBySource.has(sourceName)) {
+                    if (!this.edgesBySource.has(sourceName))
                         this.edgesBySource.set(sourceName, []);
-                    }
                     this.edgesBySource.get(sourceName).push(edge);
+                }
+
+                // Build pure-data edge list for the queue engine (no DOM refs)
+                const labelEl = edge.querySelector('text');
+                const edgeLabel = labelEl ? labelEl.textContent.trim() : '';
+                const titleMatch = edgeId.trim().match(/^([^->\s]+)\s*->\s*([^->\s]+)/);
+                if (titleMatch) {
+                    this.edgeList.push({
+                        sourceName: titleMatch[1],
+                        targetName: titleMatch[2],
+                        label: edgeLabel
+                    });
+                    // Reverse map: "targetName:inputKey" → SVG edge element
+                    const opMatch = edgeLabel.match(/op\[(\d+)\]/);
+                    if (opMatch) {
+                        this.edgesByTargetInput.set(`${titleMatch[2]}:${opMatch[1]}`, edge);
+                    }
                 }
             }
         });
 
-        console.log(`Built edge map with ${this.edgeMap.size} edges`);
+        console.log(`Built edge map with ${this.edgeMap.size} edges, ${this.edgeList.length} pure-data edges`);
     }
 
     enableControls() {
@@ -514,6 +555,166 @@ class DataflowVisualizer {
         const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
         this.dom.totalCycles.textContent = maxCycle;
         this.dom.totalNodes.textContent = this.nodeMap.size;
+    }
+
+    /** Builds queue snapshots, showing a progress bar in the menu bar.
+     * Called only when the user enables the Queue toggle.
+     */
+    async _buildQueueSnapshots() {
+        if (!this.fireLogFileKey || !this.edgeList.length) return;
+
+        // Already have matching snapshots (e.g. from an imported .wavesnap).
+        if (this.queueEngine.ready && this.queueEngine._fileKey === this.fireLogFileKey) {
+            this._setExportEnabled(true);
+            return;
+        }
+
+        const progressEl = document.getElementById('snapshotProgress');
+        const barEl      = document.getElementById('snapshotProgressBar');
+        const labelEl    = document.getElementById('snapshotProgressLabel');
+
+        // Show progress bar and disable jump controls.
+        this._setJumpControlsDisabled(true);
+        if (progressEl) {
+            progressEl.style.display = 'flex';
+            barEl.style.setProperty('--pct', '0%');
+            labelEl.textContent = '0%';
+        }
+
+        const onProgress = (cycle, maxCycle) => {
+            if (!progressEl) return;
+            const pct = maxCycle > 0 ? Math.round((cycle / maxCycle) * 100) : 0;
+            barEl.style.setProperty('--pct', `${pct}%`);
+            labelEl.textContent = `${pct}%`;
+        };
+
+        await this.queueEngine.build(
+            this.cycleData,
+            this.edgeList,
+            this.nodeIdToName,
+            this.fireLogFileKey,
+            onProgress
+        );
+
+        // Show 100%, pause briefly, then hide.
+        if (progressEl) {
+            barEl.style.setProperty('--pct', '100%');
+            labelEl.textContent = '100%';
+            await new Promise(r => setTimeout(r, 300));
+            progressEl.style.display = 'none';
+        }
+        this._setJumpControlsDisabled(false);
+        this._setExportEnabled(true);
+    }
+
+    _setJumpControlsDisabled(disabled) {
+        const input = document.getElementById('jumpToCycleInput');
+        const btn   = document.getElementById('jumpToCycleBtn');
+        if (input) input.disabled = disabled;
+        if (btn)   btn.disabled   = disabled;
+    }
+
+    _setExportEnabled(enabled) {
+        const btn = document.getElementById('exportSnapshotsItem');
+        if (btn) btn.classList.toggle('disabled', !enabled);
+    }
+
+    /** Export current snapshots as a gzip-compressed .wavesnap download. */
+    async _exportSnapshots() {
+        this.dom.fileDropdown?.classList.remove('show');
+        if (!this.queueEngine.ready) return;
+        try {
+            const blob = await this.queueEngine.exportToBlob();
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = 'snapshots.wavesnap';
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Snapshot export failed:', e);
+        }
+    }
+
+    /** Load a .wavesnap file the user dropped or selected. */
+    async _handleSnapshotFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        try {
+            const buf = await file.arrayBuffer();
+            const ok  = await this.queueEngine.importFromBuffer(buf, this.fireLogFileKey);
+            if (ok) {
+                console.log('[App] Snapshot file loaded — queue engine is ready.');
+                this._setExportEnabled(true);
+            } else {
+                console.warn('[App] Snapshot file did not match the current fire log (file key mismatch).');
+            }
+        } catch (e) {
+            console.error('[App] Failed to load snapshot file:', e);
+        }
+        // Reset input so the same file can be reloaded if needed
+        event.target.value = '';
+    }
+
+    /** Handle a .wavesnap loaded from the initial upload modal (before fire log key is known). */
+    async _handleUploadModalWavesnap(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const statusEl = document.getElementById('wavesnapStatus');
+        try {
+            const buf = await file.arrayBuffer();
+            // If we already have the fire log key, try to import immediately.
+            if (this.fireLogFileKey) {
+                const ok = await this.queueEngine.importFromBuffer(buf, this.fireLogFileKey);
+                if (ok) {
+                    if (statusEl) { statusEl.textContent = `✓ ${file.name}`; statusEl.className = 'file-status wavesnap-status success'; }
+                    this._setExportEnabled(true);
+                    return;
+                }
+                if (statusEl) { statusEl.textContent = '✗ Did not match fire log'; statusEl.className = 'file-status wavesnap-status error'; }
+                return;
+            }
+            // Fire log not loaded yet — store for later consumption in _buildQueueSnapshots.
+            this.pendingWavesnapBuffer = buf;
+            if (statusEl) { statusEl.textContent = `✓ ${file.name} (pending)`; statusEl.className = 'file-status wavesnap-status success'; }
+        } catch (e) {
+            console.error('[App] Failed to read wavesnap file:', e);
+            if (statusEl) { statusEl.textContent = '✗ Read error'; statusEl.className = 'file-status wavesnap-status error'; }
+        }
+        event.target.value = '';
+    }
+
+    /**
+     * Given logical queue state from the engine, recreate the queuedTokens
+     * SVG elements so the renderer sees the correct visual state.
+     * Caller must have already cleared queuedTokens and removed .queued-token elements.
+     * @param {Map<string, Map<string, string[]>>} logicalState
+     */
+    rebuildQueuedTokensFromLogicalState(logicalState) {
+        logicalState.forEach((inputQueues, targetNodeName) => {
+            inputQueues.forEach((tokenValues, inputKey) => {
+                if (!tokenValues || !tokenValues.length) return;
+                const edgeKey = `${targetNodeName}:${inputKey}`;
+                const edge = this.edgesByTargetInput.get(edgeKey);
+                if (!edge) return;
+                const pathEl = edge.querySelector('path');
+                if (!pathEl || !pathEl.getTotalLength) return;
+                const L = pathEl.getTotalLength();
+                const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
+                const baseX = pt.x, baseY = pt.y;
+                if (!this.queuedTokens.has(targetNodeName))
+                    this.queuedTokens.set(targetNodeName, new Map());
+                const nodeQueues = this.queuedTokens.get(targetNodeName);
+                const tokenEls = [];
+                tokenValues.forEach((val, idx) => {
+                    const gToken = this._createTokenElement(baseX, baseY - idx * 18, val);
+                    gToken.classList.add('queued-token');
+                    this.contentGroup.appendChild(gToken);
+                    tokenEls.push(gToken);
+                });
+                nodeQueues.set(inputKey, { baseX, baseY, tokens: tokenEls });
+            });
+        });
     }
 
     play() {
@@ -573,18 +774,24 @@ class DataflowVisualizer {
     }
 
     replayToCurrentCycle() {
-        // Clear all queued tokens and rebuild by replaying
+        // Clear all queued tokens
         if (this.graphSvg) {
             this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
         }
         this.queuedTokens.clear();
-        
-        // Replay cycles 0 through currentCycle-1 silently
-        for (let cycle = 0; cycle < this.currentCycle; cycle++) {
-            const instructions = this.cycleData.get(cycle) || [];
-            this.processInstructionsForQueues(instructions);
+
+        if (this.queueEngine && this.queueEngine.ready) {
+            // Fast path: restore from nearest snapshot + minimal replay (O(snapshotInterval))
+            const logicalState = this.queueEngine.getPreCycleState(this.currentCycle);
+            this.rebuildQueuedTokensFromLogicalState(logicalState);
+        } else {
+            // Fallback: full linear replay from cycle 0 (used before snapshots are ready)
+            for (let cycle = 0; cycle < this.currentCycle; cycle++) {
+                const instructions = this.cycleData.get(cycle) || [];
+                this.processInstructionsForQueues(instructions);
+            }
         }
-        
+
         // Display current cycle normally
         this.updateVisualization();
     }
@@ -592,8 +799,14 @@ class DataflowVisualizer {
     toggleQueueVisualization(checked) {
         this.queueVisualizationEnabled = checked;
         if (this.queueVisualizationEnabled) {
-            // Rebuild queues from cycle 0 to current
-            this.replayToCurrentCycle();
+            if (!this.queueEngine.ready) {
+                // Build snapshots with progress bar, then render queues.
+                this._buildQueueSnapshots()
+                    .then(() => this.replayToCurrentCycle())
+                    .catch(e => console.warn('[QueueEngine] Snapshot build failed:', e));
+            } else {
+                this.replayToCurrentCycle();
+            }
         } else {
             // Clear all queued tokens
             if (this.graphSvg) {
@@ -1477,5 +1690,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     makeDrop(dotDrop, dotInput, dotStatus, 'handleDotFile');
     makeDrop(fireDrop, fireInput, fireStatus, 'handleFireLog');
+
+    // Optional wavesnap drop zone in the upload modal
+    const wavesnapDrop  = document.getElementById('wavesnapDrop');
+    const wavesnapInput = document.getElementById('wavesnapFile');
+    const wavesnapStatus = document.getElementById('wavesnapStatus');
+    if (wavesnapDrop && wavesnapInput) {
+        ['dragenter', 'dragover'].forEach(ev =>
+            wavesnapDrop.addEventListener(ev, (e) => { prevent(e); wavesnapDrop.classList.add('dragover'); }));
+        ['dragleave', 'dragexit', 'drop'].forEach(ev =>
+            wavesnapDrop.addEventListener(ev, (e) => { prevent(e); if (ev !== 'drop') wavesnapDrop.classList.remove('dragover'); }));
+        wavesnapDrop.addEventListener('drop', (e) => {
+            prevent(e);
+            wavesnapDrop.classList.remove('dragover');
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file && window.visualizer) {
+                window.visualizer._handleUploadModalWavesnap({ target: { files: [file] }, value: '' });
+            }
+        });
+        wavesnapDrop.addEventListener('click', () => wavesnapInput.click());
+        wavesnapInput.addEventListener('change', (e) => {
+            if (window.visualizer) window.visualizer._handleUploadModalWavesnap(e);
+        });
+    }
 });
 
