@@ -708,7 +708,7 @@ class DataflowVisualizer {
                 const pathEl = edge.querySelector('path');
                 if (!pathEl || !pathEl.getTotalLength) return;
                 const L = pathEl.getTotalLength();
-                const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
+                const pt = pathEl.getPointAtLength(Math.max(0, L - 4));
                 const baseX = pt.x, baseY = pt.y;
                 if (!this.queuedTokens.has(targetNodeName))
                     this.queuedTokens.set(targetNodeName, new Map());
@@ -1178,16 +1178,25 @@ class DataflowVisualizer {
             ];
         }
 
-        const BOX_H  = 18;
-        const BOX_W  = 52;
-        const GAP    = 2;
-        const STEP   = BOX_H + GAP;
-        const totalH = slots.length * STEP - GAP;
-        const topCY  = queueData.baseY - totalH + BOX_H / 2;
+        const BOX_H     = 18;
+        const ELLIPSIS_H = 9;
+        const BOX_W      = 52;
+        const GAP        = 2;
 
-        slots.forEach((slot, i) => {
-            const cy = topCY + i * STEP;
-            const el = this._createTokenElement(queueData.baseX, cy, slot.label, slot.isEllipsis);
+        // Annotate each slot with its height
+        const slotsH = slots.map(s => ({ ...s, h: s.isEllipsis ? ELLIPSIS_H : BOX_H }));
+
+        // Compute total stack height and per-slot center Y positions (stack grows upward)
+        const totalH = slotsH.reduce((acc, s) => acc + s.h + GAP, -GAP);
+        let cursor = queueData.baseY - totalH; // top edge of topmost slot
+        const centerYs = slotsH.map(s => {
+            const cy = cursor + s.h / 2;
+            cursor += s.h + GAP;
+            return cy;
+        });
+
+        slotsH.forEach((slot, i) => {
+            const el = this._createTokenElement(queueData.baseX, centerYs[i], slot.label, slot.isEllipsis, slot.h);
             el.classList.add('queued-token');
             this.contentGroup.appendChild(el);
             queueData.elements.push(el);
@@ -1266,11 +1275,12 @@ class DataflowVisualizer {
         const canvas = document.getElementById('timelineCanvas');
         if (!canvas) return;
 
-        // Sync pixel size whenever canvas is resized
+        // Sync pixel size whenever canvas is resized (HiDPI-aware)
         if (this._timelineResizeObserver) this._timelineResizeObserver.disconnect();
         const syncSize = () => {
-            canvas.width  = canvas.offsetWidth;
-            canvas.height = canvas.offsetHeight;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width  = canvas.offsetWidth  * dpr;
+            canvas.height = canvas.offsetHeight * dpr;
             this._drawTimelineRuler();
         };
         this._timelineResizeObserver = new ResizeObserver(syncSize);
@@ -1304,8 +1314,10 @@ class DataflowVisualizer {
         const canvas = document.getElementById('timelineCanvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const W = canvas.width, H = canvas.height;
+        const dpr = window.devicePixelRatio || 1;
+        const W = canvas.offsetWidth, H = canvas.offsetHeight;
         if (!W || !H) return;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         const maxCycle = (this.cycleData && this.cycleData.size)
             ? Math.max(0, ...Array.from(this.cycleData.keys()))
@@ -1380,8 +1392,8 @@ class DataflowVisualizer {
         ctx.fill();
     }
 
-    _createTokenElement(x, y, value, isEllipsis = false) {
-        const BOX_W = 52, BOX_H = 18;
+    _createTokenElement(x, y, value, isEllipsis = false, boxH = 18) {
+        const BOX_W = 52;
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         g.setAttribute('transform', `translate(${x}, ${y})`);
         g.classList.add('token');
@@ -1389,9 +1401,9 @@ class DataflowVisualizer {
 
         const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rect.setAttribute('x',      String(-BOX_W / 2));
-        rect.setAttribute('y',      String(-BOX_H / 2));
+        rect.setAttribute('y',      String(-boxH / 2));
         rect.setAttribute('width',  String(BOX_W));
-        rect.setAttribute('height', String(BOX_H));
+        rect.setAttribute('height', String(boxH));
         rect.setAttribute('rx',     '3');
         rect.classList.add('token-box');
         g.appendChild(rect);
@@ -1400,7 +1412,7 @@ class DataflowVisualizer {
         text.textContent = String(value);
         text.setAttribute('class', 'token-text');
         text.setAttribute('x', '0');
-        text.setAttribute('y', '0');
+        text.setAttribute('y', isEllipsis ? '-2' : '0');
         g.appendChild(text);
 
         return g;

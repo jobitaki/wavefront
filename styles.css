@@ -43,19 +43,19 @@ body {
 /* Timeline scrubber bar */
 .timeline-bar {
     position: fixed;
-    bottom: 0;
+    top: 48px;
     left: 0;
     right: 0;
-    height: 40px;
+    height: 26px;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 0 12px;
     z-index: 999;
-    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .timeline-cycle-label {
@@ -70,7 +70,7 @@ body {
 
 .timeline-canvas {
     flex: 1;
-    height: 34px;
+    height: 20px;
     display: block;
     cursor: col-resize;
     border-radius: 3px;
@@ -483,10 +483,10 @@ input:checked + .slider:before {
 /* Left Sidebar */
 .sidebar-left {
     position: fixed;
-    top: 48px;
+    top: 74px;
     left: 0;
     width: 350px;
-    height: calc(100vh - 88px);
+    height: calc(100vh - 74px);
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(12px);
     border-right: 1px solid rgba(0, 0, 0, 0.1);
@@ -575,10 +575,10 @@ input:checked + .slider:before {
 /* Visualization Container */
 .visualization {
     position: fixed;
-    top: 48px;
+    top: 74px;
     left: 0;
     right: 0;
-    bottom: 40px;
+    bottom: 0;
     transition: left 0.3s ease;
 }
 
