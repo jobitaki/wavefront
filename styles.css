@@ -40,6 +40,42 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Timeline scrubber bar */
+.timeline-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    z-index: 999;
+    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.timeline-cycle-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72em;
+    color: rgba(102, 126, 234, 0.8);
+    min-width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.timeline-canvas {
+    flex: 1;
+    height: 34px;
+    display: block;
+    cursor: col-resize;
+    border-radius: 3px;
+}
+
 .menu-section {
     display: flex;
     align-items: center;
@@ -450,7 +486,7 @@ input:checked + .slider:before {
     top: 48px;
     left: 0;
     width: 350px;
-    height: calc(100vh - 48px);
+    height: calc(100vh - 88px);
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(12px);
     border-right: 1px solid rgba(0, 0, 0, 0.1);
@@ -542,7 +578,7 @@ input:checked + .slider:before {
     top: 48px;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 40px;
     transition: left 0.3s ease;
 }
 
@@ -813,19 +849,19 @@ input:checked + .slider:before {
 }
 
 .token .token-box {
-    fill: #1a1a2e;
-    stroke: rgba(0, 0, 0, 0.9);
+    fill: rgba(102, 126, 234, 0.92);
+    stroke: rgba(55, 70, 160, 0.9);
     stroke-width: 1.5;
 }
 
 .token.token-ellipsis .token-box {
-    fill: #2f2f36;
-    stroke: rgba(102, 126, 234, 0.35);
+    fill: rgba(102, 126, 234, 0.25);
+    stroke: rgba(55, 70, 160, 0.4);
     stroke-dasharray: 3 2;
 }
 
 .token .token-text {
-    fill: #e8eaf6;
+    fill: #ffffff;
     font-size: 9px;
     font-weight: 600;
     font-family: 'IBM Plex Mono', 'Courier New', monospace;
@@ -835,7 +871,7 @@ input:checked + .slider:before {
 }
 
 .token.token-ellipsis .token-text {
-    fill: rgba(102, 126, 234, 0.6);
+    fill: rgba(55, 70, 160, 0.8);
     font-size: 11px;
 }
 

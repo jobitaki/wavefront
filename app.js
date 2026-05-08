@@ -135,6 +135,8 @@ class DataflowVisualizer {
             }
         });
 
+        // Timeline events are wired in _initTimeline(), called from enableControls().
+
         // Queue visualization toggle
         document.getElementById('queueToggleBtn').addEventListener('change', (e) => this.toggleQueueVisualization(e.target.checked));
 
@@ -547,6 +549,9 @@ class DataflowVisualizer {
         document.getElementById('jumpToCycleInput').disabled = false;
         document.getElementById('jumpToCycleBtn').disabled = false;
         document.getElementById('stepSizeInput').disabled = false;
+
+        // Initialize DAW-style timeline canvas
+        this._initTimeline();
         
         this.reset();
     }
@@ -608,10 +613,13 @@ class DataflowVisualizer {
     }
 
     _setJumpControlsDisabled(disabled) {
-        const input = document.getElementById('jumpToCycleInput');
-        const btn   = document.getElementById('jumpToCycleBtn');
-        if (input) input.disabled = disabled;
-        if (btn)   btn.disabled   = disabled;
+        const input  = document.getElementById('jumpToCycleInput');
+        const btn    = document.getElementById('jumpToCycleBtn');
+        const canvas = document.getElementById('timelineCanvas');
+        if (input)  input.disabled = disabled;
+        if (btn)    btn.disabled   = disabled;
+        this._timelineDisabled = disabled;
+        if (canvas) canvas.style.cursor = disabled ? 'default' : 'col-resize';
     }
 
     _setExportEnabled(enabled) {
@@ -924,9 +932,12 @@ class DataflowVisualizer {
     updateVisualization() {
         // Update the cycle input field to show current cycle
         const cycleInput = document.getElementById('jumpToCycleInput');
-        if (cycleInput) {
-            cycleInput.value = this.currentCycle;
-        }
+        if (cycleInput) cycleInput.value = this.currentCycle;
+
+        // Update timeline
+        const cycleLabel = document.getElementById('timelineCycleLabel');
+        if (cycleLabel) cycleLabel.textContent = this.currentCycle;
+        this._drawTimelineRuler();
         
         // Clear previous highlights and tokens
         this.clearHighlights();
@@ -1249,6 +1260,124 @@ class DataflowVisualizer {
     _hideQueueTooltip() {
         const tip = document.getElementById('queue-tooltip');
         if (tip) tip.style.display = 'none';
+    }
+
+    _initTimeline() {
+        const canvas = document.getElementById('timelineCanvas');
+        if (!canvas) return;
+
+        // Sync pixel size whenever canvas is resized
+        if (this._timelineResizeObserver) this._timelineResizeObserver.disconnect();
+        const syncSize = () => {
+            canvas.width  = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            this._drawTimelineRuler();
+        };
+        this._timelineResizeObserver = new ResizeObserver(syncSize);
+        this._timelineResizeObserver.observe(canvas);
+        syncSize();
+
+        // Wire drag-to-scrub only once
+        if (this._timelineEventsWired) return;
+        this._timelineEventsWired = true;
+
+        let dragging = false;
+        const seekTo = (clientX) => {
+            if (this._timelineDisabled || !this.cycleData) return;
+            const rect = canvas.getBoundingClientRect();
+            const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            const maxCycle = Math.max(...Array.from(this.cycleData.keys()));
+            this.currentCycle = Math.round(ratio * maxCycle);
+            if (this.queueVisualizationEnabled) {
+                this.replayToCurrentCycle();
+            } else {
+                this.updateVisualization();
+            }
+        };
+
+        canvas.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); seekTo(e.clientX); });
+        document.addEventListener('mousemove', (e) => { if (dragging) seekTo(e.clientX); });
+        document.addEventListener('mouseup',   () => { dragging = false; });
+    }
+
+    _drawTimelineRuler() {
+        const canvas = document.getElementById('timelineCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width, H = canvas.height;
+        if (!W || !H) return;
+
+        const maxCycle = (this.cycleData && this.cycleData.size)
+            ? Math.max(0, ...Array.from(this.cycleData.keys()))
+            : 0;
+
+        // Background
+        ctx.fillStyle = 'rgba(255,255,255,0.98)';
+        ctx.fillRect(0, 0, W, H);
+
+        // Subtle bottom-edge band
+        const botGrad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+        botGrad.addColorStop(0, 'rgba(102,126,234,0)');
+        botGrad.addColorStop(1, 'rgba(102,126,234,0.04)');
+        ctx.fillStyle = botGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        if (maxCycle === 0) { this._drawPlayhead(ctx, 0, W, H, 0); return; }
+
+        // Choose tick intervals so major labels are at least ~55px apart
+        const pxPerCycle = W / maxCycle;
+        const candidates = [1,2,5,10,20,50,100,200,500,1000,2000,5000,10000];
+        let majorIv = candidates[candidates.length - 1];
+        for (const c of candidates) {
+            if (c * pxPerCycle >= 55) { majorIv = c; break; }
+        }
+        const minorIv = majorIv <= 1 ? 1 : majorIv / 5;
+
+        // Minor ticks
+        ctx.strokeStyle = 'rgba(102,126,234,0.15)';
+        ctx.lineWidth = 1;
+        for (let c = 0; c <= maxCycle; c += minorIv) {
+            const x = Math.round((c / maxCycle) * W) + 0.5;
+            ctx.beginPath(); ctx.moveTo(x, H - 6); ctx.lineTo(x, H); ctx.stroke();
+        }
+
+        // Major ticks + labels
+        ctx.font = "600 9px 'IBM Plex Mono', monospace";
+        ctx.textBaseline = 'middle';
+        for (let c = 0; c <= maxCycle; c += majorIv) {
+            const x = Math.round((c / maxCycle) * W) + 0.5;
+            ctx.strokeStyle = 'rgba(102,126,234,0.35)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x, H / 2); ctx.lineTo(x, H); ctx.stroke();
+            ctx.fillStyle = 'rgba(102,126,234,0.65)';
+            ctx.textAlign = c === 0 ? 'left' : 'center';
+            ctx.fillText(String(c), c === 0 ? x + 2 : x, H / 2 - 5);
+        }
+
+        this._drawPlayhead(ctx, this.currentCycle, W, H, maxCycle);
+    }
+
+    _drawPlayhead(ctx, cycle, W, H, maxCycle) {
+        const x = maxCycle > 0 ? Math.round((cycle / maxCycle) * W) : 0;
+        // Filled progress track
+        ctx.fillStyle = 'rgba(102,126,234,0.08)';
+        ctx.fillRect(0, 0, x, H);
+        // Glow line
+        ctx.save();
+        ctx.shadowColor = 'rgba(102,126,234,0.4)';
+        ctx.shadowBlur  = 4;
+        ctx.strokeStyle = 'rgba(102,126,234,0.9)';
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke();
+        ctx.restore();
+        // Triangle handle at top
+        ctx.fillStyle = 'rgba(102,126,234,0.9)';
+        ctx.beginPath();
+        ctx.moveTo(x - 5, 0);
+        ctx.lineTo(x + 5, 0);
+        ctx.lineTo(x,     8);
+        ctx.closePath();
+        ctx.fill();
     }
 
     _createTokenElement(x, y, value, isEllipsis = false) {
