@@ -812,20 +812,47 @@ input:checked + .slider:before {
     pointer-events: none;
 }
 
-.token .token-circle {
-    fill: #ff4444;
-    stroke: #cc0000;
-    stroke-width: 2;
-    filter: drop-shadow(0 0 8px rgba(255, 68, 68, 0.8));
+.token .token-box {
+    fill: #1a1a2e;
+    stroke: rgba(0, 0, 0, 0.9);
+    stroke-width: 1.5;
+}
+
+.token.token-ellipsis .token-box {
+    fill: #2f2f36;
+    stroke: rgba(102, 126, 234, 0.35);
+    stroke-dasharray: 3 2;
 }
 
 .token .token-text {
-    fill: #ffffff;
-    font-size: 10px;
-    font-weight: 700;
+    fill: #e8eaf6;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
     text-anchor: middle;
     dominant-baseline: central;
     pointer-events: none;
+}
+
+.token.token-ellipsis .token-text {
+    fill: rgba(102, 126, 234, 0.6);
+    font-size: 11px;
+}
+
+/* Queue hover tooltip */
+.queue-tooltip {
+    position: fixed;
+    background: rgba(20, 20, 35, 0.92);
+    color: #e8eaf6;
+    font-size: 0.78em;
+    font-family: 'IBM Plex Sans', sans-serif;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid rgba(102, 126, 234, 0.4);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 9000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
 }
 
 @keyframes pulse {
@@ -903,9 +930,9 @@ g.edge polygon {
     will-change: filter;
 }
 
-.search-highlight-token .token-circle {
-    fill: #3b82f6 !important;
-    stroke: #1e40af !important;
+.search-highlight-token .token-box {
+    fill: #1e3a5f !important;
+    stroke: #3b82f6 !important;
     stroke-width: 2 !important;
 }
 

@@ -7,7 +7,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=Orbit&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&family=Orbit&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <!-- Graphviz WASM library for rendering DOT graphs -->
@@ -214,6 +214,9 @@
         </div>
 
     </div>
+
+    <!-- Queue hover tooltip -->
+    <div id="queue-tooltip" class="queue-tooltip" style="display:none"></div>
 
     <!-- Hidden file inputs for reuploading -->
     <input type="file" id="reuploadDotFile" accept=".dot" style="display:none" />

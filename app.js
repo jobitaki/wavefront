@@ -705,14 +705,11 @@ class DataflowVisualizer {
                 if (!this.queuedTokens.has(targetNodeName))
                     this.queuedTokens.set(targetNodeName, new Map());
                 const nodeQueues = this.queuedTokens.get(targetNodeName);
-                const tokenEls = [];
-                tokenValues.forEach((val, idx) => {
-                    const gToken = this._createTokenElement(baseX, baseY - idx * 18, val);
-                    gToken.classList.add('queued-token');
-                    this.contentGroup.appendChild(gToken);
-                    tokenEls.push(gToken);
-                });
-                nodeQueues.set(inputKey, { baseX, baseY, tokens: tokenEls });
+                // Preserve expanded state across rebuilds
+                const prevExpanded = nodeQueues.has(inputKey) ? !!nodeQueues.get(inputKey).expanded : false;
+                const queueData = { baseX, baseY, values: [...tokenValues], elements: [], inputKey, expanded: prevExpanded };
+                this._redrawQueueSlots(queueData);
+                nodeQueues.set(inputKey, queueData);
             });
         });
     }
@@ -753,9 +750,9 @@ class DataflowVisualizer {
     reset() {
         this.pause();
         this.currentCycle = 0;
-        // Clear all queued tokens
+        // Clear all queued tokens and overlays
         if (this.graphSvg) {
-            this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+            this.graphSvg.querySelectorAll('.queued-token, .queue-overlay').forEach(el => el.remove());
         }
         this.queuedTokens.clear();
         this.updateVisualization();
@@ -774,9 +771,9 @@ class DataflowVisualizer {
     }
 
     replayToCurrentCycle() {
-        // Clear all queued tokens
+        // Clear all queued tokens and overlays
         if (this.graphSvg) {
-            this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+            this.graphSvg.querySelectorAll('.queued-token, .queue-overlay').forEach(el => el.remove());
         }
         this.queuedTokens.clear();
 
@@ -808,9 +805,9 @@ class DataflowVisualizer {
                 this.replayToCurrentCycle();
             }
         } else {
-            // Clear all queued tokens
+            // Clear all queued tokens and overlays
             if (this.graphSvg) {
-                this.graphSvg.querySelectorAll('.queued-token').forEach(el => el.remove());
+                this.graphSvg.querySelectorAll('.queued-token, .queue-overlay').forEach(el => el.remove());
             }
             this.queuedTokens.clear();
             this.updateVisualization();
@@ -829,25 +826,16 @@ class DataflowVisualizer {
             if (!nodeName) return;
 
             // Pop the head of each input queue when instruction fires
-            // Special rule for stream: only pop inputs when last_flag is true
             const shouldPopInputs = this._shouldPopInputTokens(instr);
-            
+
             if (shouldPopInputs && this.queuedTokens.has(nodeName)) {
                 const inputQueues = this.queuedTokens.get(nodeName);
                 inputQueues.forEach((queueData, key) => {
-                    if (queueData.tokens && queueData.tokens.length > 0) {
-                        // Pop the head (FIFO)
-                        const head = queueData.tokens.shift();
-                        try { if (head && head.remove) head.remove(); } catch (e) {}
-                        
-                        // Reposition remaining tokens
-                        queueData.tokens.forEach((tok, idx) => {
-                            const offset = idx * 18;
-                            tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
-                        });
+                    if (queueData.values && queueData.values.length > 0) {
+                        queueData.values.shift();
+                        this._redrawQueueSlots(queueData);
                     }
-                    // Clean up empty queues
-                    if (!queueData.tokens || queueData.tokens.length === 0) {
+                    if (!queueData.values || queueData.values.length === 0) {
                         inputQueues.delete(key);
                     }
                 });
@@ -859,21 +847,21 @@ class DataflowVisualizer {
             relevantEdges.forEach(edge => {
                 const titleEl = edge.querySelector('title');
                 if (!titleEl) return;
-                
+
                 const edgeTitle = titleEl.textContent.trim();
                 const labelEl = edge.querySelector('text');
                 const edgeLabel = labelEl ? labelEl.textContent.trim() : '';
                 const pathEl = edge.querySelector('path');
-                
+
                 if (pathEl && pathEl.getTotalLength) {
                     const L = pathEl.getTotalLength();
                     const pt = pathEl.getPointAtLength(Math.max(0, L - 2));
                     const x = pt.x;
                     const y = pt.y;
-                    
+
                     const resIndex = this._extractResIndexFromEdgeTitle(edgeLabel, nodeName);
                     const val = this._getResValueForIndex(instr, resIndex);
-                    
+
                     if (val !== null && val !== undefined) {
                         const targetMatch = edgeTitle.match(/->\s*([^:\s]+)/);
                         const targetName = targetMatch ? targetMatch[1] : null;
@@ -883,35 +871,17 @@ class DataflowVisualizer {
                         if (targetInputIdx === null) targetInputIdx = resIndex;
 
                         if (targetName) {
-                            // Enqueue token
-                            if (!this.queuedTokens.has(targetName)) {
+                            if (!this.queuedTokens.has(targetName))
                                 this.queuedTokens.set(targetName, new Map());
-                            }
                             const inputQueues = this.queuedTokens.get(targetName);
                             const key = String(targetInputIdx);
-                            
-                            if (!inputQueues.has(key)) {
-                                inputQueues.set(key, { baseX: x, baseY: y, tokens: [] });
-                            }
+                            if (!inputQueues.has(key))
+                                inputQueues.set(key, { baseX: x, baseY: y, values: [], elements: [], inputKey: key });
                             const queueData = inputQueues.get(key);
-                            
-                            // Update base position to current edge endpoint and reposition existing tokens
                             queueData.baseX = x;
                             queueData.baseY = y;
-                            queueData.tokens.forEach((tok, idx) => {
-                                const offset = idx * 18;
-                                tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
-                            });
-                            
-                            const stackIdx = queueData.tokens.length;
-                            const offset = stackIdx * 18;
-                            const sx = queueData.baseX;
-                            const sy = queueData.baseY - offset;
-                            
-                            const gToken = this._createTokenElement(sx, sy, val);
-                            gToken.classList.add('queued-token');
-                            this.contentGroup.appendChild(gToken);
-                            queueData.tokens.push(gToken);
+                            queueData.values.push(String(val));
+                            this._redrawQueueSlots(queueData);
                         }
                     }
                 }
@@ -1047,26 +1017,16 @@ class DataflowVisualizer {
 
                 // Only process queues if queue visualization is enabled
                 if (this.queueVisualizationEnabled) {
-                    // When instruction fires, pop the head of each input queue and reposition remaining
-                    // Special rule for stream: only pop inputs when last_flag is true
                     const shouldPopInputs = this._shouldPopInputTokens(instr);
-                    
+
                     if (shouldPopInputs && nodeName && this.queuedTokens.has(nodeName)) {
                         const inputQueues = this.queuedTokens.get(nodeName);
                         inputQueues.forEach((queueData, key) => {
-                            if (queueData.tokens && queueData.tokens.length > 0) {
-                                // Pop the head (FIFO)
-                                const head = queueData.tokens.shift();
-                                try { if (head && head.remove) head.remove(); } catch (e) {}
-                                
-                                // Reposition remaining tokens so they shift down (stay anchored)
-                                queueData.tokens.forEach((tok, idx) => {
-                                    const offset = idx * 18; // 18px vertical spacing
-                                    tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
-                                });
+                            if (queueData.values && queueData.values.length > 0) {
+                                queueData.values.shift();
+                                this._redrawQueueSlots(queueData);
                             }
-                            // Clean up empty queues
-                            if (!queueData.tokens || queueData.tokens.length === 0) {
+                            if (!queueData.values || queueData.values.length === 0) {
                                 inputQueues.delete(key);
                             }
                         });
@@ -1121,29 +1081,14 @@ class DataflowVisualizer {
                                     const inputQueues = this.queuedTokens.get(targetName);
                                     const key = String(targetInputIdx);
                                     
-                                    if (!inputQueues.has(key)) {
-                                        inputQueues.set(key, { baseX: x, baseY: y, tokens: [] });
-                                    }
+                                    if (!inputQueues.has(key))
+                                        inputQueues.set(key, { baseX: x, baseY: y, values: [], elements: [], inputKey: key });
                                     const queueData = inputQueues.get(key);
-                                    
-                                    // Update base position to current edge endpoint and reposition existing tokens
+
                                     queueData.baseX = x;
                                     queueData.baseY = y;
-                                    queueData.tokens.forEach((tok, idx) => {
-                                        const offset = idx * 18;
-                                        tok.setAttribute('transform', `translate(${queueData.baseX}, ${queueData.baseY - offset})`);
-                                    });
-                                    
-                                    // Stack position: index * spacing from base
-                                    const stackIdx = queueData.tokens.length;
-                                    const offset = stackIdx * 18; // vertical spacing
-                                    const sx = queueData.baseX;
-                                    const sy = queueData.baseY - offset;
-                                    
-                                    const gToken = this._createTokenElement(sx, sy, val);
-                                    gToken.classList.add('queued-token');
-                                    fragment.appendChild(gToken);
-                                    queueData.tokens.push(gToken);
+                                    queueData.values.push(String(val));
+                                    this._redrawQueueSlots(queueData);
                                     placed = true;
                                 } else {
                                     // Fallback: transient token at edge endpoint
@@ -1185,24 +1130,151 @@ class DataflowVisualizer {
     }
 
     // NEW: Helper method to create token elements
-    _createTokenElement(x, y, value) {
-        const gToken = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        gToken.setAttribute('transform', `translate(${x}, ${y})`);
-        gToken.classList.add('token');
+    /**
+     * Given a queueData object `{ baseX, baseY, values, elements }`, clear
+     * the existing SVG elements and redraw the capped slot view:
+     *   ≤ 4 values  →  show all  (tail at top, head at bottom)
+     *   > 4 values  →  show tail, tail-1, …, head+1, head  (5 rows)
+     * `values[0]` = head (oldest / next to be dequeued)
+     * `values[last]` = tail (newest / most recently enqueued)
+     */
+    _redrawQueueSlots(queueData) {
+        // Remove old elements and overlay
+        for (const el of queueData.elements) {
+            try { el.remove(); } catch (_) {}
+        }
+        queueData.elements = [];
+        if (queueData.overlay) {
+            try { queueData.overlay.remove(); } catch (_) {}
+            queueData.overlay = null;
+        }
 
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('r', '10');
-        circle.classList.add('token-circle');
-        gToken.appendChild(circle);
+        const vals = queueData.values;
+        if (!vals || vals.length === 0) return;
+
+        // Build display list (top → bottom = tail → head)
+        let slots; // array of { label, isEllipsis }
+        const expanded = !!queueData.expanded;
+        if (vals.length <= 4 || expanded) {
+            slots = [...vals].reverse().map(v => ({ label: String(v), isEllipsis: false }));
+        } else {
+            slots = [
+                { label: String(vals[vals.length - 1]), isEllipsis: false }, // tail
+                { label: String(vals[vals.length - 2]), isEllipsis: false }, // tail-1
+                { label: '\u2026',                       isEllipsis: true  }, // …
+                { label: String(vals[1]),                isEllipsis: false }, // head+1
+                { label: String(vals[0]),                isEllipsis: false }, // head
+            ];
+        }
+
+        const BOX_H  = 18;
+        const BOX_W  = 52;
+        const GAP    = 2;
+        const STEP   = BOX_H + GAP;
+        const totalH = slots.length * STEP - GAP;
+        const topCY  = queueData.baseY - totalH + BOX_H / 2;
+
+        slots.forEach((slot, i) => {
+            const cy = topCY + i * STEP;
+            const el = this._createTokenElement(queueData.baseX, cy, slot.label, slot.isEllipsis);
+            el.classList.add('queued-token');
+            this.contentGroup.appendChild(el);
+            queueData.elements.push(el);
+        });
+
+        // Transparent overlay rect for hover/click interaction
+        const overlayH = totalH + GAP * 2;
+        const overlay  = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        overlay.setAttribute('x',      String(queueData.baseX - BOX_W / 2));
+        overlay.setAttribute('y',      String(queueData.baseY - overlayH + GAP));
+        overlay.setAttribute('width',  String(BOX_W));
+        overlay.setAttribute('height', String(overlayH));
+        overlay.setAttribute('fill',   'transparent');
+        overlay.setAttribute('stroke', 'none');
+        overlay.style.cursor = 'pointer';
+        overlay.style.pointerEvents = 'all';
+        overlay.classList.add('queue-overlay');
+        this.contentGroup.appendChild(overlay);
+        queueData.overlay = overlay;
+
+        const count = vals.length;
+        const raiseToFront = () => {
+            for (const el of queueData.elements) this.contentGroup.appendChild(el);
+            this.contentGroup.appendChild(overlay);
+        };
+        overlay.addEventListener('mouseenter', (e) => {
+            raiseToFront();
+            this._showQueueTooltip(e, count, queueData.expanded);
+        });
+        overlay.addEventListener('mousemove', (e) => {
+            this._repositionTooltip(e);
+        });
+        overlay.addEventListener('mouseleave', () => {
+            this._hideQueueTooltip();
+        });
+        overlay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._hideQueueTooltip();
+            queueData.expanded = !queueData.expanded;
+            this._redrawQueueSlots(queueData);
+            // Re-raise after redraw since elements were replaced
+            for (const el of queueData.elements) this.contentGroup.appendChild(el);
+            if (queueData.overlay) this.contentGroup.appendChild(queueData.overlay);
+        });
+    }
+
+    _showQueueTooltip(e, count, expanded = false) {
+        const tip = document.getElementById('queue-tooltip');
+        if (!tip) return;
+        const action = (count > 4) ? (expanded ? ' · click to collapse' : ' · click to expand') : '';
+        tip.textContent = `${count} item${count !== 1 ? 's' : ''}${action}`;
+        tip.style.display = 'block';
+        this._repositionTooltip(e);
+    }
+
+    _repositionTooltip(e) {
+        const tip = document.getElementById('queue-tooltip');
+        if (!tip || tip.style.display === 'none') return;
+        const OFFSET = 12;
+        let left = e.clientX + OFFSET;
+        let top  = e.clientY + OFFSET;
+        const w = tip.offsetWidth  || 120;
+        const h = tip.offsetHeight || 24;
+        if (left + w > window.innerWidth  - 8) left = e.clientX - w - OFFSET;
+        if (top  + h > window.innerHeight - 8) top  = e.clientY - h - OFFSET;
+        tip.style.left = `${left}px`;
+        tip.style.top  = `${top}px`;
+    }
+
+    _hideQueueTooltip() {
+        const tip = document.getElementById('queue-tooltip');
+        if (tip) tip.style.display = 'none';
+    }
+
+    _createTokenElement(x, y, value, isEllipsis = false) {
+        const BOX_W = 52, BOX_H = 18;
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${x}, ${y})`);
+        g.classList.add('token');
+        if (isEllipsis) g.classList.add('token-ellipsis');
+
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x',      String(-BOX_W / 2));
+        rect.setAttribute('y',      String(-BOX_H / 2));
+        rect.setAttribute('width',  String(BOX_W));
+        rect.setAttribute('height', String(BOX_H));
+        rect.setAttribute('rx',     '3');
+        rect.classList.add('token-box');
+        g.appendChild(rect);
 
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         text.textContent = String(value);
         text.setAttribute('class', 'token-text');
         text.setAttribute('x', '0');
         text.setAttribute('y', '0');
-        gToken.appendChild(text);
+        g.appendChild(text);
 
-        return gToken;
+        return g;
     }
 
     highlightConnectedEdges(instrOrId) {
