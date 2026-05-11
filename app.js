@@ -1833,7 +1833,7 @@ class DataflowVisualizer {
             );
             // Apply an initial zoom-in multiplier to make the graph larger on first render
             const maxScale = (this.zoom && this.zoom.scaleExtent) ? this.zoom.scaleExtent()[1] : 5;
-            let scale = rawScale * 4;
+            let scale = rawScale * 9;
             if (!isFinite(scale) || scale <= 0) scale = 1;
             scale = Math.min(scale, maxScale);
             
