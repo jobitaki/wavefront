@@ -22,6 +22,7 @@ class DataflowVisualizer {
         this.queueEngine = new QueueStateEngine({ snapshotInterval: 10 });
         this.pendingWavesnapBuffer = null;     // .wavesnap loaded before fire log key is known
         this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
+        this._statsTokenHistory = []; // rolling array of {cycle, count} for tokens-in-flight chart
         this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default)
         this.memoryState = new Map();  // addr -> { value:string, cycle:number }
         this._memoryLastCycle = -1;    // last cycle for which memoryState is valid
@@ -84,6 +85,9 @@ class DataflowVisualizer {
         
         // Sidebar toggle
         this.dom.sidebarToggle?.addEventListener('click', () => this.toggleSidebar());
+
+        // Stats panel toggle
+        document.getElementById('statsToggle')?.addEventListener('click', () => this.toggleStatsPanel());
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
@@ -200,6 +204,7 @@ class DataflowVisualizer {
             this.toggleQueueVisualization(false);
         }
         this._setExportEnabled(false);
+        this._statsTokenHistory = [];
     }
 
     async handleDotFile(event) {
@@ -1008,6 +1013,161 @@ class DataflowVisualizer {
         if (this.searchTerm) {
             this.performSearch(this.searchTerm);
         }
+
+        // Update rolling stats charts
+        // Record token-in-flight sample for this cycle before drawing
+        const _tokCount = this._countTokensInFlight();
+        if (!this._statsTokenHistory.find(e => e.cycle === this.currentCycle))
+            this._statsTokenHistory.push({ cycle: this.currentCycle, count: _tokCount });
+        // Prune history beyond the last 512 cycles
+        const _maxWindow = 512;
+        if (this._statsTokenHistory.length > _maxWindow * 2)
+            this._statsTokenHistory = this._statsTokenHistory.slice(-_maxWindow);
+        this.updateStatsCharts();
+    }
+
+    /** Count the total number of queued tokens currently in flight. */
+    _countTokensInFlight() {
+        let n = 0;
+        for (const nodeQueues of this.queuedTokens.values())
+            for (const slot of nodeQueues.values())
+                n += (slot.values ? slot.values.length : 0);
+        return n;
+    }
+
+    /** Count memory ops (load/store) in an instruction array. */
+    _countMemOps(instructions) {
+        return instructions.filter(i => {
+            const name = (i.instructionName || '').toLowerCase();
+            return name.includes('load') || name.includes('store');
+        }).length;
+    }
+
+    /**
+     * Draw a filled area sparkline onto a canvas.
+     * @param {HTMLCanvasElement} canvas
+     * @param {number[]} data
+     * @param {string} lineColor  Stroke color (any valid CSS color)
+     * @param {string} fillColor  Fill color for the area
+     */
+    _drawSparkline(canvas, data, lineColor, fillColor) {
+        const dpr = window.devicePixelRatio || 1;
+        const w   = canvas.clientWidth;
+        const h   = canvas.clientHeight;
+        if (w === 0 || h === 0) return;
+        canvas.width  = w * dpr;
+        canvas.height = h * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        if (data.length < 2) return;
+        const max = Math.max(...data, 1);
+
+        // Y-axis: reserve left margin for the peak label
+        const labelW = 28;
+        const plotW  = w - labelW;
+        const step   = plotW / (data.length - 1);
+        const plotX  = labelW;
+
+        // Filled area
+        ctx.beginPath();
+        ctx.moveTo(plotX, h);
+        data.forEach((v, i) => ctx.lineTo(plotX + i * step, h - (v / max) * (h - 2)));
+        ctx.lineTo(plotX + (data.length - 1) * step, h);
+        ctx.closePath();
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        data.forEach((v, i) => {
+            const x = plotX + i * step;
+            const y = h - (v / max) * (h - 2);
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Thin vertical axis line
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(plotX, 0);
+        ctx.lineTo(plotX, h);
+        ctx.stroke();
+
+        // Peak label at top of Y axis
+        ctx.font = `500 8px "IBM Plex Mono", monospace`;
+        ctx.fillStyle = 'rgba(0,0,0,0.38)';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText(String(max), labelW - 4, 2);
+    }
+
+    /** Rebuild rolling window data and redraw all three charts. */
+    updateStatsCharts() {
+        const N = 64;
+
+        const canvasInstr  = document.getElementById('chartInstructions');
+        const canvasTokens = document.getElementById('chartTokens');
+        const canvasMem    = document.getElementById('chartMemory');
+        if (!canvasInstr || !canvasTokens || !canvasMem) return;
+
+        const cur   = this.currentCycle;
+        const start = Math.max(0, cur - N + 1);
+
+        const instrData  = [];
+        const tokensData = [];
+        const memData    = [];
+
+        for (let c = start; c <= cur; c++) {
+            const instrs = this.cycleData.get(c) || [];
+            instrData.push(instrs.length);
+            memData.push(this._countMemOps(instrs));
+            const tok = this._statsTokenHistory.find(e => e.cycle === c);
+            tokensData.push(tok ? tok.count : 0);
+        }
+
+        this._drawSparkline(canvasInstr,  instrData,  'rgb(102, 126, 234)', 'rgba(102, 126, 234, 0.15)');
+        this._drawSparkline(canvasMem,    memData,    'rgb(234, 126, 102)', 'rgba(234, 126, 102, 0.15)');
+
+        if (!this.queueVisualizationEnabled) {
+            this._drawPlaceholder(canvasTokens, 'Enable Queue Toggle to see data');
+        } else {
+            this._drawSparkline(canvasTokens, tokensData, 'rgb(82, 196, 169)', 'rgba(82, 196, 169, 0.15)');
+        }
+    }
+
+    /** Draw a centred placeholder message on a canvas. */
+    _drawPlaceholder(canvas, message) {
+        const dpr = window.devicePixelRatio || 1;
+        const w   = canvas.clientWidth;
+        const h   = canvas.clientHeight;
+        if (w === 0 || h === 0) return;
+        canvas.width  = w * dpr;
+        canvas.height = h * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+        ctx.font = `500 9px "IBM Plex Sans", sans-serif`;
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Word-wrap at ~24 chars per line
+        const words = message.split(' ');
+        const lines = [];
+        let line = '';
+        for (const word of words) {
+            const test = line ? line + ' ' + word : word;
+            if (test.length > 22 && line) { lines.push(line); line = word; }
+            else line = test;
+        }
+        if (line) lines.push(line);
+        const lineH = 12;
+        const startY = h / 2 - ((lines.length - 1) * lineH) / 2;
+        lines.forEach((l, i) => ctx.fillText(l, w / 2, startY + i * lineH));
     }
 
     clearHighlights() {
@@ -1879,6 +2039,17 @@ class DataflowVisualizer {
     toggleSidebar() {
         this.dom.sidebarLeft?.classList.toggle('collapsed');
         this.dom.visualization?.classList.toggle('sidebar-open');
+    }
+
+    toggleStatsPanel() {
+        const panel = document.getElementById('sidebarRight');
+        const viz   = this.dom.visualization;
+        panel?.classList.toggle('collapsed');
+        viz?.classList.toggle('stats-open');
+        if (panel && !panel.classList.contains('collapsed')) {
+            // Redraw charts now that panel is visible again
+            this.updateStatsCharts();
+        }
     }
 
     reuploadDot() {

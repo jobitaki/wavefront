@@ -608,6 +608,102 @@ input:checked + .slider:before {
     left: 350px;
 }
 
+.visualization.stats-open {
+    right: 220px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RIGHT STATS SIDEBAR
+══════════════════════════════════════════════════════════════════════════ */
+
+.sidebar-right {
+    position: fixed;
+    top: 74px;
+    right: 0;
+    width: 220px;
+    height: calc(100vh - 74px);
+    background: #ffffff;
+    border-left: 1px solid rgba(0, 0, 0, 0.18);
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+.sidebar-right.collapsed {
+    transform: translateX(220px);
+}
+
+.stats-toggle {
+    position: absolute;
+    top: 50%;
+    left: -32px;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 64px;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-right: none;
+    border-radius: 0;
+    color: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.stats-toggle:hover {
+    background: rgba(245, 245, 245, 0.98);
+    color: #1a1a1a;
+}
+
+.sidebar-right.collapsed .stats-toggle i {
+    transform: rotate(180deg);
+}
+
+.sidebar-right-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 12px 12px 8px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.stats-chart-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-height: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.stats-chart-block:last-of-type {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.stats-chart-label {
+    font-size: 0.68em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: rgba(0, 0, 0, 0.38);
+    font-family: 'IBM Plex Sans', sans-serif;
+    flex-shrink: 0;
+}
+
+.stats-canvas {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: block;
+}
+
 .file-upload {
     display: flex;
     gap: 20px;

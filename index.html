@@ -246,8 +246,29 @@
             </div>
         </div>
 
+        <!-- Right Sidebar: Stats Charts -->
+        <div class="sidebar-right" id="sidebarRight">
+            <button class="stats-toggle" id="statsToggle" title="Toggle stats panel">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <div class="sidebar-right-content">
+                <div class="stats-chart-block">
+                    <div class="stats-chart-label">Instructions Fired</div>
+                    <canvas class="stats-canvas" id="chartInstructions"></canvas>
+                </div>
+                <div class="stats-chart-block">
+                    <div class="stats-chart-label">Tokens in Flight</div>
+                    <canvas class="stats-canvas" id="chartTokens"></canvas>
+                </div>
+                <div class="stats-chart-block">
+                    <div class="stats-chart-label">Memory Ops</div>
+                    <canvas class="stats-canvas" id="chartMemory"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Graph Container -->
-        <div class="visualization sidebar-open" id="visualization">
+        <div class="visualization sidebar-open stats-open" id="visualization">
             <div id="graph-container">
                 <svg id="graph-svg"></svg>
             </div>
