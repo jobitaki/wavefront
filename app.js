@@ -1515,12 +1515,9 @@ class DataflowVisualizer {
         queueData.overlay = overlay;
 
         const count = vals.length;
-        const raiseToFront = () => {
-            for (const el of queueData.elements) this.contentGroup.appendChild(el);
-            this.contentGroup.appendChild(overlay);
-        };
         overlay.addEventListener('mouseenter', (e) => {
-            raiseToFront();
+            // Do NOT re-append elements here — DOM re-ordering mid-hover
+            // interrupts the browser's mousemove stream to this element.
             this._showQueueTooltip(e, count, queueData.expanded);
         });
         overlay.addEventListener('mousemove', (e) => {
@@ -1529,12 +1526,15 @@ class DataflowVisualizer {
         overlay.addEventListener('mouseleave', () => {
             this._hideQueueTooltip();
         });
-        overlay.addEventListener('click', (e) => {
-            e.stopPropagation();
+        // Use pointerdown instead of click — fires before any D3 processing
+        // and is not subject to D3's post-drag click suppression.
+        overlay.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return; // left button only
+            e.stopPropagation(); // prevent pan handler from starting
             this._hideQueueTooltip();
             queueData.expanded = !queueData.expanded;
             this._redrawQueueSlots(queueData);
-            // Re-raise after redraw since elements were replaced
+            // Raise new elements to front after redraw
             for (const el of queueData.elements) this.contentGroup.appendChild(el);
             if (queueData.overlay) this.contentGroup.appendChild(queueData.overlay);
         });
@@ -1954,15 +1954,43 @@ class DataflowVisualizer {
         
         // Define zoom behavior
         this.zoom = d3.zoom()
-            .scaleExtent([0.1, 5]) // Min and max zoom levels
+            .scaleExtent([0.1, 5])
+            .filter(event => {
+                // Never let D3 handle events on queue overlays
+                if (event.target?.classList.contains('queue-overlay')) return false;
+                // Mouse panning is handled by our custom listener (2× speed)
+                if (event.type === 'mousedown') return false;
+                if (event.type === 'pointerdown') return false;
+                return (!event.ctrlKey || event.type === 'wheel') && !event.button;
+            })
             .on('zoom', (event) => {
                 this.currentTransform = event.transform;
                 zoomGroup.attr('transform', event.transform);
             });
-        
+
         // Apply zoom to the container (not the SVG directly)
         container.call(this.zoom);
-        
+
+        // Custom mouse panning with 2× speed multiplier.
+        // D3's built-in panning is disabled via the filter above.
+        const _pan = { active: false, x: 0, y: 0 };
+        const containerNode = container.node();
+        containerNode.addEventListener('mousedown', (e) => {
+            if (e.button !== 0 || e.target.classList.contains('queue-overlay')) return;
+            _pan.active = true;
+            _pan.x = e.clientX;
+            _pan.y = e.clientY;
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!_pan.active) return;
+            const dx = (e.clientX - _pan.x) * 2;
+            const dy = (e.clientY - _pan.y) * 2;
+            _pan.x = e.clientX;
+            _pan.y = e.clientY;
+            d3.select(containerNode).call(this.zoom.translateBy, dx, dy);
+        });
+        window.addEventListener('mouseup', () => { _pan.active = false; });
+
         // Set initial zoom to fit the content
         this.fitToView();
     }
