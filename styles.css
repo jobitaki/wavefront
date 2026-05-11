@@ -1,4 +1,8 @@
 
+/* ══════════════════════════════════════════════════════════════════════════
+   BASE RESET & LAYOUT
+══════════════════════════════════════════════════════════════════════════ */
+
 * {
     margin: 0;
     padding: 0;
@@ -21,7 +25,10 @@ body {
     flex-direction: column;
 }
 
-/* Top Menu Bar */
+/* ══════════════════════════════════════════════════════════════════════════
+   TOP MENU BAR
+══════════════════════════════════════════════════════════════════════════ */
+
 .top-menu-bar {
     position: fixed;
     top: 0;
@@ -39,6 +46,10 @@ body {
     gap: 16px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TIMELINE SCRUBBER
+══════════════════════════════════════════════════════════════════════════ */
 
 /* Timeline scrubber bar */
 .timeline-bar {
@@ -180,7 +191,10 @@ body {
     font-size: 0.9em;
 }
 
-/* File Dropdown */
+/* ══════════════════════════════════════════════════════════════════════════
+   FILE DROPDOWN MENU
+══════════════════════════════════════════════════════════════════════════ */
+
 .file-dropdown {
     position: absolute;
     top: 100%;
@@ -235,7 +249,10 @@ body {
     width: 16px;
 }
 
-/* Search Bar */
+/* ══════════════════════════════════════════════════════════════════════════
+   SEARCH BAR
+══════════════════════════════════════════════════════════════════════════ */
+
 .search-group {
     margin-left: 8px;
 }
@@ -298,7 +315,10 @@ body {
     justify-content: center;
 }
 
-/* Queue Toggle in Menu */
+/* ══════════════════════════════════════════════════════════════════════════
+   QUEUE TOGGLE & SNAPSHOT PROGRESS
+══════════════════════════════════════════════════════════════════════════ */
+
 .queue-group {
     gap: 8px;
 }
@@ -391,7 +411,10 @@ input:checked + .slider:before {
     opacity: 0.9;
 }
 
-/* Speed Control in Menu */
+/* ══════════════════════════════════════════════════════════════════════════
+   PLAYBACK SPEED & CYCLE NAVIGATION
+══════════════════════════════════════════════════════════════════════════ */
+
 .speed-group {
     gap: 8px;
 }
@@ -435,7 +458,6 @@ input:checked + .slider:before {
     min-width: 30px;
 }
 
-/* Cycle Navigation Controls in Menu */
 .cycle-jump-group,
 .step-size-group {
     gap: 8px;
@@ -480,7 +502,10 @@ input:checked + .slider:before {
     color: rgba(0, 0, 0, 0.4);
 }
 
-/* Left Sidebar */
+/* ══════════════════════════════════════════════════════════════════════════
+   LEFT SIDEBAR
+══════════════════════════════════════════════════════════════════════════ */
+
 .sidebar-left {
     position: fixed;
     top: 74px;
@@ -548,7 +573,7 @@ input:checked + .slider:before {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     padding: 12px;
     background: rgba(0, 0, 0, 0.03);
     border-radius: 6px;
@@ -572,7 +597,10 @@ input:checked + .slider:before {
     font-family: 'IBM Plex Mono', monospace;
 }
 
-/* Visualization Container */
+/* ══════════════════════════════════════════════════════════════════════════
+   VISUALIZATION CONTAINER
+══════════════════════════════════════════════════════════════════════════ */
+
 .visualization {
     position: fixed;
     top: 74px;
@@ -614,6 +642,7 @@ input:checked + .slider:before {
     display: none;
 }
 
+/* ── Playback controls ───────────────────────────────────────────────────── */
 /* Playback button styles */
 .playback-controls { display: flex; gap: 8px; align-items: center; }
 .playback-controls button { 
@@ -679,122 +708,200 @@ input:checked + .slider:before {
     color: #ff6b6b;
 }
 
-/* Loading modal header */
-.loading .modal-header {
-    background: rgba(102, 126, 234, 0.12);
-    color: #1a1a1a;
-    padding: 12px 18px;
-    border-radius: 12px;
-    font-family: "IBM Plex Sans", sans-serif;
-    margin-bottom: 18px;
-    border: 1px solid rgba(102, 126, 234, 0.2);
+/* ══════════════════════════════════════════════════════════════════════════
+   UPLOAD MODAL
+══════════════════════════════════════════════════════════════════════════ */
+
+.modal-logo-img {
+    height: 32px;
+    width: auto;
+    margin-bottom: 20px;
+    display: block;
 }
-.loading .modal-header h2 { margin: 0; font-size: 1.1em; }
+.modal-close-btn {
+    position: absolute;
+    top: 32px;
+    right: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(0,0,0,0.3);
+    font-size: 1em;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: color 0.12s, background 0.12s;
+    line-height: 1;
+}
+.modal-close-btn:hover {
+    color: rgba(0,0,0,0.65);
+    background: rgba(0,0,0,0.06);
+}
+.modal-subtitle {
+    font-size: 0.82em;
+    color: rgba(0,0,0,0.38);
+    margin: 0 0 22px;
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.modal-instructions {
+    margin: 0 0 18px;
+    padding: 0 0 0 18px;
+    font-size: 0.82em;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: rgba(0,0,0,0.5);
+    line-height: 1.7;
+}
+.modal-instructions strong { color: rgba(0,0,0,0.72); font-weight: 600; }
+.modal-instructions em { font-style: normal; color: rgba(0,0,0,0.38); }
 
 .upload-grid {
     display: flex;
-    gap: 16px;
+    gap: 10px;
     width: 100%;
-    justify-content: center;
-    align-items: stretch;
-    margin-top: 6px;
+    margin-bottom: 20px;
 }
 
 .drop-zone {
-    flex: 1 1 220px;
-    min-width: 220px;
-    border: 2px dashed rgba(102, 126, 234, 0.4);
-    border-radius: 20px;
-    padding: 18px;
+    flex: 1;
+    min-width: 0;
+    border: 1.5px dashed rgba(102, 126, 234, 0.35);
+    border-radius: 14px;
+    padding: 18px 10px 14px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background: rgba(248, 248, 248, 0.9);
+    gap: 4px;
+    background: rgba(248, 249, 252, 0.9);
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    text-align: center;
 }
-
-.drop-zone .drop-title { font-weight: 700; color: rgba(0, 0, 0, 0.8); }
-.drop-zone .drop-instructions { font-size: 0.9em; color: rgba(0, 0, 0, 0.5); text-align: center; }
-
-.drop-zone.dragover { background: rgba(102,126,234,0.1); transform: translateY(-4px); box-shadow: 0 8px 24px rgba(102,126,234,0.2); }
-
-/* Optional wavesnap row in upload modal */
-.wavesnap-zone {
-    width: 100%;
-    margin-top: 15px;
-    margin-bottom: 20px;
-    border: 2px dashed rgba(102, 126, 234, 0.4);
-    border-radius: 12px;
-    padding: 15px 20px;
-    background: rgba(248, 248, 248, 0.6);
-    cursor: pointer;
-    transition: all 0.18s ease;
-    box-sizing: border-box;
+.drop-zone:hover {
+    background: rgba(102, 126, 234, 0.06);
+    border-color: rgba(102, 126, 234, 0.55);
 }
-.wavesnap-zone:hover {
-    background: rgba(102, 126, 234, 0.07);
-    border-color: rgba(102, 126, 234, 0.4);
-}
-.wavesnap-zone.dragover {
+.drop-zone.dragover {
     background: rgba(102, 126, 234, 0.1);
-    border-color: rgba(102, 126, 234, 0.5);
+    border-color: rgba(102, 126, 234, 0.7);
+    transform: translateY(-2px);
 }
-.wavesnap-zone-inner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.drop-icon {
+    font-size: 1.3em;
+    color: rgba(102, 126, 234, 0.55);
+    margin-bottom: 4px;
 }
-.wavesnap-icon { color: rgba(102, 126, 234, 0.6); font-size: 20px; flex-shrink: 0; }
-.wavesnap-text { display: flex; flex-direction: column; gap: 1px; flex: 1; }
-.wavesnap-title { font-size: 0.85em; font-weight: 700; color: rgba(0, 0, 0, 0.7); }
-.wavesnap-optional { font-weight: 400; color: rgba(0, 0, 0, 0.4); }
-.wavesnap-hint { font-size: 0.78em; color: rgba(0, 0, 0, 0.4); }
-.wavesnap-status { font-size: 0.8em; margin: 0; margin-top: 2px; }
+.drop-zone .drop-title {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: rgba(0,0,0,0.72);
+    font-family: 'IBM Plex Sans', sans-serif;
+}
+.drop-zone .drop-instructions {
+    font-size: 0.72em;
+    color: rgba(0,0,0,0.38);
+    font-family: 'IBM Plex Mono', monospace;
+}
+.drop-zone .file-status {
+    font-size: 0.72em;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
 
-.upload-footer { display:flex; justify-content:center; }
+/* ── Snapshot drop zone — slightly different tint ───────────────────────── */
+.drop-zone--snap {
+    border-color: rgba(102, 126, 234, 0.25);
+    background: rgba(245, 246, 252, 0.7);
+}
+
+.upload-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.examples-label {
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: rgba(0,0,0,0.35);
+    font-family: 'IBM Plex Sans', sans-serif;
+    margin-bottom: 2px;
+}
+.example-table {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    column-gap: 20px;
+    row-gap: 5px;
+    margin: 0 0 10px;
+}
+.example-list-header {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    padding: 2px 12px 4px;
+    font-size: 0.72em;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: rgba(0,0,0,0.35);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.example-list {
+    display: contents;
+    list-style: none;
+}
+.example-list li {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.85em;
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: rgba(55, 70, 160, 0.9);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    background: rgba(102, 126, 234, 0.07);
+}
+.example-list .ex-cycles,
+.example-list .ex-size,
+.example-list .ex-arch {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9em;
+    color: rgba(55, 70, 160, 0.6);
+    white-space: nowrap;
+}
+.example-list li:hover {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 1px 4px rgba(102, 126, 234, 0.15);
+}
+.example-list li:active {
+    background: rgba(102, 126, 234, 0.22);
+    box-shadow: none;
+}
+
 .github-btn {
     display: inline-flex;
     align-items: center;
-    gap:6px;
-    padding:4px 6px;
-    border-radius:4px;
-    background: transparent;
-    color: rgba(0, 0, 0, 0.6);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9em;
-    opacity: 0.8;
-}
-.github-btn i { font-size:16px; color: rgba(0, 0, 0, 0.6); }
-.github-btn:hover { text-decoration: underline; transform: none; box-shadow: none; opacity: 1; }
-
-.example-btn {
-    display: inline-flex;
-    align-items: center;
     gap: 6px;
-    padding: 8px 16px;
-    border-radius: 8px;
-    background: rgba(102, 126, 234, 0.15);
-    color: #667eea;
-    border: 1px solid rgba(102, 126, 234, 0.3);
-    font-weight: 600;
-    font-size: 0.9em;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    padding: 4px 0;
+    color: rgba(0,0,0,0.38);
+    text-decoration: none;
+    font-size: 0.8em;
+    font-family: 'IBM Plex Sans', sans-serif;
+    transition: color 0.12s;
 }
-.example-btn i { font-size: 14px; }
-.example-btn:hover {
-    background: rgba(102, 126, 234, 0.25);
-    border-color: rgba(102, 126, 234, 0.5);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-}
-.example-btn:active {
-    transform: translateY(0);
-}
+.github-btn:hover { color: rgba(0,0,0,0.7); }
+.github-btn i { font-size: 14px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GRAPH CANVAS
+══════════════════════════════════════════════════════════════════════════ */
 
 /* Scrollbar styling for panels */
 .execution-log::-webkit-scrollbar {
@@ -875,7 +982,10 @@ input:checked + .slider:before {
     font-size: 11px;
 }
 
-/* Queue hover tooltip */
+/* ══════════════════════════════════════════════════════════════════════════
+   QUEUE TOKENS & TOOLTIP
+══════════════════════════════════════════════════════════════════════════ */
+
 .queue-tooltip {
     position: fixed;
     background: rgba(20, 20, 35, 0.92);
@@ -901,6 +1011,10 @@ input:checked + .slider:before {
         opacity: 0.8;
     }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   GRAPH ELEMENT STYLES & HIGHLIGHTS
+══════════════════════════════════════════════════════════════════════════ */
 
 /* Base styles for graph elements - hardware acceleration hints */
 g.node ellipse,
@@ -943,7 +1057,7 @@ g.edge polygon {
     will-change: opacity, fill, stroke;
 }
 
-/* Search Highlight - Blue Glow */
+/* ── Search highlight — blue glow ───────────────────────────────────────── */
 .search-highlight-node {
     filter: drop-shadow(0 0 15px rgba(59, 130, 246, 1)) drop-shadow(0 0 25px rgba(59, 130, 246, 0.8));
     transition: opacity 0.2s ease, filter 0.3s ease;
@@ -1010,6 +1124,10 @@ g.edge polygon {
     font-size: 0.85em;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   SIDEBAR PANELS (EXECUTION LOG, MEMORY LOG, STATS)
+══════════════════════════════════════════════════════════════════════════ */
+
 .execution-log {
     flex: 1;
     overflow-y: auto;
@@ -1033,22 +1151,72 @@ g.edge polygon {
     color: rgba(55, 70, 160, 1);
 }
 
+/* ── Memory log ──────────────────────────────────────────────────────────── */
+.memory-log-header {
+    font-size: 0.75em;
+    font-weight: 600;
+    color: rgba(55, 70, 160, 0.7);
+    font-family: 'IBM Plex Sans', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 2px 4px;
+}
+
+.memory-log {
+    min-height: 200px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(240, 240, 240, 0.9);
+    font-family: 'IBM Plex Mono', monospace;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.78em;
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    flex-shrink: 0;
+}
+
+.memory-log-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 1px 2px;
+    border-radius: 3px;
+    color: rgba(55, 70, 160, 0.75);
+    transition: background 0.15s;
+}
+
+.memory-log-entry.active {
+    background: rgba(102, 126, 234, 0.12);
+    color: rgba(55, 70, 160, 1);
+    font-weight: 600;
+}
+
+.memory-log-entry.active.store {
+    background: rgba(102, 126, 234, 0.18);
+    border-left: 2px solid rgba(102, 126, 234, 0.8);
+    padding-left: 4px;
+}
+
+.mem-addr  { flex: 0 0 auto; min-width: 6ch; }
+.mem-arrow { flex: 0 0 auto; color: rgba(102, 126, 234, 0.45); padding: 0 2px; }
+.mem-value { flex: 1 1 auto; }
+.mem-cycle { flex: 0 0 auto; font-size: 0.85em; color: rgba(102, 126, 234, 0.4); margin-left: 4px; }
+
 .loading {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    text-align: center;
-    padding: 40px;
-    font-size: 1.2em;
+    padding: 30px 36px 28px;
+    font-size: 1em;
     color: rgba(0, 0, 0, 0.8);
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(10px);
+    background: #fff;
     border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.07);
     z-index: 1100;
-    max-width: 550px;
+    width: 480px;
+    box-sizing: border-box;
 }
 
 .error-message {

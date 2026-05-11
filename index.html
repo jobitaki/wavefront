@@ -20,44 +20,76 @@
     <div class="container">
         <!-- Initial Upload Modal -->
         <div class="loading" id="loadingMessage">
-            <div class="modal-header">
-                <h2>Upload Graph & Log</h2>
-            </div>
+            <button class="modal-close-btn" id="modalCloseBtn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            <img src="media/wavefront_full.png" alt="Wavefront" class="modal-logo-img">
+            <ol class="modal-instructions">
+                <li>Drop a <strong>DOT graph</strong> and <strong>fire log</strong> to load a trace, <em>or</em></li>
+                <li>Drop a self-contained <strong>.wavesnap</strong> to restore a saved session</li>
+            </ol>
+
             <div class="upload-grid">
                 <div class="drop-zone" id="dotDrop">
-                    <div class="drop-title">DOT Graph (.dot)</div>
-                    <div class="drop-instructions">Drag & drop a .dot file here, or click to choose</div>
+                    <i class="fa-solid fa-diagram-project drop-icon"></i>
+                    <div class="drop-title">DOT Graph</div>
+                    <div class="drop-instructions">.dot</div>
                     <input type="file" id="dotFile" accept=".dot" style="display:none" />
-                    <div class="file-status" id="dotStatus">No file selected</div>
+                    <div class="file-status" id="dotStatus"></div>
                 </div>
-
                 <div class="drop-zone" id="fireDrop">
-                    <div class="drop-title">Fire Log (.log/.txt)</div>
-                    <div class="drop-instructions">Drag & drop a fire log here, or click to choose</div>
+                    <i class="fa-solid fa-fire drop-icon"></i>
+                    <div class="drop-title">Fire Log</div>
+                    <div class="drop-instructions">.log / .txt</div>
                     <input type="file" id="fireLog" accept=".log,.txt" style="display:none" />
-                    <div class="file-status" id="fireLogStatus">No file selected</div>
+                    <div class="file-status" id="fireLogStatus"></div>
+                </div>
+                <div class="drop-zone drop-zone--snap" id="wavesnapDrop">
+                    <i class="fa-solid fa-fish drop-icon"></i>
+                    <div class="drop-title">Snapshot</div>
+                    <div class="drop-instructions">.wavesnap</div>
+                    <input type="file" id="wavesnapFile" accept=".wavesnap" style="display:none" />
+                    <div class="file-status" id="wavesnapStatus"></div>
                 </div>
             </div>
-            <div class="wavesnap-zone" id="wavesnapDrop">
-                <input type="file" id="wavesnapFile" accept=".wavesnap" style="display:none" />
-                <div class="wavesnap-zone-inner">
-                    <i class="fa-solid fa-fish wavesnap-icon"></i>
-                    <div class="wavesnap-text">
-                        <span class="wavesnap-title">.wavesnap <span class="wavesnap-optional">(standalone)</span></span>
-                        <span class="wavesnap-hint">Drop a self-contained .wavesnap to open without other files</span>
-                        <div class="file-status wavesnap-status" id="wavesnapStatus">No snapshot loaded</div>
-                    </div>
+
+            <div class="upload-footer">
+                <div class="examples-label">Examples</div>
+                <div class="example-table">
+                <div class="example-list-header">
+                    <span>Application</span>
+                    <span>Cycles</span>
+                    <span>Size</span>
+                    <span>Arch</span>
                 </div>
-            </div>
-            <div id="loadingNote" style="margin-top:10px; font-size:0.9em; color:rgba(0, 0, 0, 0.5);">Drop a self-contained .wavesnap to open without other files, or load a DOT graph and fire log.</div>
-            <div class="upload-footer" style="margin-top:14px; display:flex; gap:16px; align-items:center;">
-                <button class="example-btn" id="loadExampleBtn">
-                    <i class="fa-solid fa-file-arrow-down"></i>
-                    <span>Load Example</span>
-                </button>
+                <ul class="example-list" id="exampleList">
+                    <li data-example="bfs">
+                        <span class="ex-name">Breadth-First Search</span>
+                        <span class="ex-cycles">16420</span>
+                        <span class="ex-size">725 KB</span>
+                        <span class="ex-arch">RipTide</span>
+                    </li>
+                    <li data-example="dmm">
+                        <span class="ex-name">Dense Matrix Multiply</span>
+                        <span class="ex-cycles">12819</span>
+                        <span class="ex-size">4.1 MB</span>
+                        <span class="ex-arch">RipTide</span>
+                    </li>
+                    <li data-example="sconv">
+                        <span class="ex-name">Sparse Convolution</span>
+                        <span class="ex-cycles">7309</span>
+                        <span class="ex-size">1.2 MB</span>
+                        <span class="ex-arch">RipTide</span>
+                    </li>
+                    <li data-example="sort">
+                        <span class="ex-name">Radix Sort</span>
+                        <span class="ex-cycles">8229</span>
+                        <span class="ex-size">2.8 MB</span>
+                        <span class="ex-arch">RipTide</span>
+                    </li>
+                </ul>
+                </div>
                 <a class="github-btn" href="https://github.com/jobitaki/wavefront" target="_blank" rel="noopener noreferrer">
                     <i class="fa-brands fa-github"></i>
-                    <span>View on GitHub</span>
+                    <span>GitHub</span>
                 </a>
             </div>
         </div>
@@ -191,7 +223,6 @@
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
             <div class="sidebar-content">
-                <div class="sidebar-header">Execution Log</div>
                 <div class="sidebar-stats">
                     <div class="sidebar-info-item">
                         <span class="sidebar-info-label">Total Cycles:</span>
@@ -206,9 +237,12 @@
                         <span class="sidebar-info-value" id="totalNodes">0</span>
                     </div>
                 </div>
+                <div class="memory-log-header">Execution Log</div>
                 <div class="execution-log" id="executionLog">
                     <!-- Execution entries will be added here -->
                 </div>
+                <div class="memory-log-header">Memory State</div>
+                <div class="memory-log" id="memoryLog"></div>
             </div>
         </div>
 

@@ -23,6 +23,8 @@ class DataflowVisualizer {
         this.pendingWavesnapBuffer = null;     // .wavesnap loaded before fire log key is known
         this.queuedTokens = new Map(); // Map targetNodeName -> Map<inputKey, {baseX, baseY, tokens:[]}>
         this.queueVisualizationEnabled = false; // Toggle for queue visualization (off by default)
+        this.memoryState = new Map();  // addr -> { value:string, cycle:number }
+        this._memoryLastCycle = -1;    // last cycle for which memoryState is valid
         this.zoom = null; // D3 zoom behavior
         this.currentTransform = d3.zoomIdentity; // Current zoom/pan transform
         this.stepSize = 1; // Default step size for prev/next navigation
@@ -44,6 +46,7 @@ class DataflowVisualizer {
         // Cache frequently accessed DOM elements
         this.dom.graphContainer = document.getElementById('graph-container');
         this.dom.executionLog = document.getElementById('executionLog');
+        this.dom.memoryLog     = document.getElementById('memoryLog');
         this.dom.cycleInstrCount = document.getElementById('cycleInstrCount');
         this.dom.playBtn = document.getElementById('playBtn');
         this.dom.pauseBtn = document.getElementById('pauseBtn');
@@ -188,10 +191,22 @@ class DataflowVisualizer {
         });
     }
 
+    _resetQueueState() {
+        this.queueEngine.ready = false;
+        this.queueEngine.clearSnapshots?.();
+        const toggle = document.getElementById('queueToggleBtn');
+        if (toggle && toggle.checked) {
+            toggle.checked = false;
+            this.toggleQueueVisualization(false);
+        }
+        this._setExportEnabled(false);
+    }
+
     async handleDotFile(event) {
         const file = event.target.files[0];
         if (!file) return;
 
+        this._resetQueueState();
         const statusEl = document.getElementById('dotStatus');
         try {
             this.dotContent = await this.readFile(file);
@@ -210,6 +225,7 @@ class DataflowVisualizer {
         const file = event.target.files[0];
         if (!file) return;
 
+        this._resetQueueState();
         const statusEl = document.getElementById('fireLogStatus');
         try {
             // For small files (< 10MB), use the old method
@@ -307,51 +323,36 @@ class DataflowVisualizer {
         }
     }
 
-    async loadExampleFiles() {
+    async loadExampleFiles(exampleKey = 'default') {
+        const EXAMPLES = {
+            'bfs':   { label: 'Breadth-First Search', snap: 'examples/bfs_256.wavesnap' },
+            'dmm':   { label: 'Dense Matrix Multiply', snap: 'examples/dmm_16.wavesnap' },
+            'sconv': { label: 'Sparse Convolution',   snap: 'examples/sconv_256.wavesnap' },
+            'sort':  { label: 'Radix Sort',           snap: 'examples/sort_512.wavesnap' },
+        };
+        const ex = EXAMPLES[exampleKey] || EXAMPLES['bfs'];
         try {
-            const loadingNote = document.getElementById('loadingNote');
-            if (loadingNote) loadingNote.textContent = 'Loading example files...';
-            
-            // Fetch example DOT file
-            const dotResponse = await fetch('examples/example_dot.dot');
-            if (!dotResponse.ok) throw new Error(`DOT file not found (${dotResponse.status})`);
-            const dotContent = await dotResponse.text();
-            this.dotContent = dotContent;
-            
-            // Update status
-            const dotStatus = document.getElementById('dotStatus');
-            if (dotStatus) {
-                dotStatus.textContent = '✓ Loaded: example_dot.dot';
-                dotStatus.className = 'file-status success';
+            const response = await fetch(ex.snap);
+            if (!response.ok) throw new Error(`Snapshot not found (${response.status})`);
+            const buf = await response.arrayBuffer();
+            const result = await this.queueEngine.importFromBuffer(buf, null);
+            if (!result.ok) throw new Error('Invalid .wavesnap file');
+            if (result.dot && result.fireLog) {
+                this.dotContent = result.dot;
+                this.parseFireLog(result.fireLog);
+                this.fireLogFileKey = result.fileKey;
+                const dotStatus  = document.getElementById('dotStatus');
+                const fireStatus = document.getElementById('fireLogStatus');
+                const snapStatus = document.getElementById('wavesnapStatus');
+                if (dotStatus)  { dotStatus.textContent  = '✓ Loaded from .wavesnap'; dotStatus.className  = 'file-status success'; }
+                if (fireStatus) { fireStatus.textContent = '✓ Loaded from .wavesnap'; fireStatus.className = 'file-status success'; }
+                if (snapStatus) { snapStatus.textContent = `✓ ${ex.snap.split('/').pop()}`; snapStatus.className = 'file-status wavesnap-status success'; }
+                this._setExportEnabled(true);
+                await this.checkAndRenderGraph();
+                console.log(`Example "${ex.label}" loaded successfully`);
             }
-            
-            // Fetch example fire log
-            const logResponse = await fetch('examples/fire.log');
-            if (!logResponse.ok) throw new Error(`Fire log not found (${logResponse.status})`);
-            const logContent = await logResponse.text();
-            this.parseFireLog(logContent);
-            this.fireLogFileKey = `example:fire.log:${logContent.length}`;
-            
-            // Update status
-            const logStatus = document.getElementById('fireLogStatus');
-            if (logStatus) {
-                logStatus.textContent = `✓ Loaded: fire.log (${this.fireLogData.length} entries)`;
-                logStatus.className = 'file-status success';
-            }
-            
-            // Render the graph
-            await this.checkAndRenderGraph();
-            
-            console.log('Example files loaded successfully');
         } catch (error) {
             console.error('Failed to load example files:', error);
-            
-            // Show error to user
-            const loadingNote = document.getElementById('loadingNote');
-            if (loadingNote) {
-                loadingNote.textContent = `Failed to load examples: ${error.message}`;
-                loadingNote.style.color = '#ff6b6b';
-            }
         }
     }
 
@@ -641,7 +642,7 @@ class DataflowVisualizer {
             const url  = URL.createObjectURL(blob);
             const a    = document.createElement('a');
             a.href     = url;
-            a.download = 'snapshots.wavesnap';
+            a.download = 'new.wavesnap';
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
@@ -730,8 +731,8 @@ class DataflowVisualizer {
      * Caller must have already cleared queuedTokens and removed .queued-token elements.
      * @param {Map<string, Map<string, string[]>>} logicalState
      */
-    rebuildQueuedTokensFromLogicalState(logicalState) {
-        logicalState.forEach((inputQueues, targetNodeName) => {
+    rebuildQueuedTokensFromLogicalState(queues) {
+        queues.forEach((inputQueues, targetNodeName) => {
             inputQueues.forEach((tokenValues, inputKey) => {
                 if (!tokenValues || !tokenValues.length) return;
                 const edgeKey = `${targetNodeName}:${inputKey}`;
@@ -795,6 +796,8 @@ class DataflowVisualizer {
             this.graphSvg.querySelectorAll('.queued-token, .queue-overlay').forEach(el => el.remove());
         }
         this.queuedTokens.clear();
+        this.memoryState.clear();
+        this._memoryLastCycle = -1;
         this.updateVisualization();
     }
 
@@ -818,9 +821,9 @@ class DataflowVisualizer {
         this.queuedTokens.clear();
 
         if (this.queueEngine && this.queueEngine.ready) {
-            // Fast path: restore from nearest snapshot + minimal replay (O(snapshotInterval))
-            const logicalState = this.queueEngine.getPreCycleState(this.currentCycle);
-            this.rebuildQueuedTokensFromLogicalState(logicalState);
+            // Fast path: restore queue state from nearest snapshot + minimal replay
+            const queues = this.queueEngine.getPreCycleState(this.currentCycle);
+            this.rebuildQueuedTokensFromLogicalState(queues);
         } else {
             // Fallback: full linear replay from cycle 0 (used before snapshots are ready)
             for (let cycle = 0; cycle < this.currentCycle; cycle++) {
@@ -828,6 +831,9 @@ class DataflowVisualizer {
                 this.processInstructionsForQueues(instructions);
             }
         }
+        // Memory is always rebuilt from cycleData — not stored in snapshots
+        this._buildMemoryStateUpTo(this.currentCycle);
+        this._memoryLastCycle = this.currentCycle;
 
         // Display current cycle normally
         this.updateVisualization();
@@ -980,7 +986,21 @@ class DataflowVisualizer {
         
         // Update execution log
         this.updateExecutionLog(instructions);
-        
+
+        // Update and render memory log
+        if (this._memoryLastCycle !== this.currentCycle) {
+            // Going forward incrementally
+            if (this.currentCycle > this._memoryLastCycle && this._memoryLastCycle >= 0) {
+                for (let c = this._memoryLastCycle + 1; c <= this.currentCycle; c++)
+                    for (const instr of (this.cycleData.get(c) || [])) this._applyMemoryOp(instr);
+            } else {
+                // Jumped backward or not yet initialised
+                this._buildMemoryStateUpTo(this.currentCycle);
+            }
+            this._memoryLastCycle = this.currentCycle;
+        }
+        this._renderMemoryLog(instructions);
+
         // Highlight active nodes and show tokens
         this.visualizeTokens(instructions);
         
@@ -1004,6 +1024,93 @@ class DataflowVisualizer {
                 el.remove();
             }
         });
+    }
+
+    /**
+     * Apply store memory side-effects of one instruction to this.memoryState.
+     */
+    _applyMemoryOp(instr) {
+        const name = (instr.instructionName || '').toLowerCase();
+        const args = instr.args || [];
+        let addr = null, value = null;
+        if (name.includes('storeindex')) {
+            if (args.length >= 4) { addr = String(args[2]); value = String(args[3]); }
+        } else if (name === 'store' || (name.includes('store') && !name.includes('index'))) {
+            if (args.length >= 3) { addr = String(args[1]); value = String(args[2]); }
+        }
+        if (addr !== null && value !== null)
+            this.memoryState.set(addr, { value, cycle: instr.cycle });
+    }
+
+    /** Rebuild memoryState by replaying all instructions from cycle 0 through targetCycle. */
+    _buildMemoryStateUpTo(targetCycle) {
+        this.memoryState = new Map();
+        for (let c = 0; c <= targetCycle; c++)
+            for (const instr of (this.cycleData.get(c) || [])) this._applyMemoryOp(instr);
+    }
+
+    /**
+     * Render the memory log panel.
+     * @param {object[]} currentInstructions  Instructions firing this cycle (for highlights).
+     */
+    _renderMemoryLog(currentInstructions) {
+        const logEl = this.dom.memoryLog;
+        if (!logEl) return;
+        if (this.memoryState.size === 0) {
+            logEl.innerHTML = '';
+            return;
+        }
+
+        // Collect addresses touched by current cycle's instructions
+        const activeAddrs = new Set();
+        // Prioritise storeIndex/store over load for conflict within same cycle
+        const storeAddrs = new Set();
+        for (const instr of currentInstructions) {
+            const name = (instr.instructionName || '').toLowerCase();
+            const args = instr.args || [];
+            let addr = null;
+            if (name.includes('storeindex')) {
+                if (args.length >= 3) addr = String(args[2]);
+            } else if (name.includes('store')) {
+                if (args.length >= 2) addr = String(args[1]);
+            }
+            if (addr !== null) {
+                activeAddrs.add(addr);
+                storeAddrs.add(addr);
+            }
+        }
+
+        // Sort addresses numerically where possible, else lexicographically
+        const sortedAddrs = Array.from(this.memoryState.keys()).sort((a, b) => {
+            const na = Number(a), nb = Number(b);
+            if (!isNaN(na) && !isNaN(nb)) return na - nb;
+            return a < b ? -1 : a > b ? 1 : 0;
+        });
+
+        let html = '';
+        let firstActive = null;
+        for (const addr of sortedAddrs) {
+            const { value, cycle } = this.memoryState.get(addr);
+            const isActive = activeAddrs.has(addr);
+            const isStore = storeAddrs.has(addr);
+            const cls = isActive
+                ? (isStore ? 'memory-log-entry active store' : 'memory-log-entry active load')
+                : 'memory-log-entry';
+            const id = isActive && !firstActive ? (firstActive = addr, `id="mem-active-first"`) : '';
+            html += `<div class="${cls}" ${id}>`
+                  + `<span class="mem-addr">${isNaN(Number(addr)) ? addr : '0x' + Number(addr).toString(16).toUpperCase()}</span>`
+                  + `<span class="mem-arrow">→</span>`
+                  + `<span class="mem-value">${value}</span>`
+                  + `<span class="mem-cycle">#${cycle}</span>`
+                  + `</div>`;
+        }
+        logEl.innerHTML = html;
+
+        // Scroll first active address into view
+        if (firstActive) {
+            const el = logEl.querySelector('#mem-active-first');
+            if (el) el.scrollIntoView({ behavior: 'instant', block: 'center' });
+        }
     }
 
     updateExecutionLog(instructions) {
@@ -1877,13 +1984,17 @@ class DataflowVisualizer {
 document.addEventListener('DOMContentLoaded', () => {
     window.visualizer = new DataflowVisualizer();
     
-    // Wire up the "Load Example" button
-    const loadExampleBtn = document.getElementById('loadExampleBtn');
-    if (loadExampleBtn) {
-        loadExampleBtn.addEventListener('click', () => {
-            window.visualizer.loadExampleFiles();
-        });
-    }
+    // Wire up modal close button
+    document.getElementById('modalCloseBtn')?.addEventListener('click', () => {
+        const modal = document.getElementById('loadingMessage');
+        if (modal) modal.style.display = 'none';
+    });
+
+    // Wire up example list items
+    document.getElementById('exampleList')?.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-example]');
+        if (item) window.visualizer.loadExampleFiles(item.dataset.example);
+    });
 });
 
 // Attach drag & drop handlers for the centered upload modal

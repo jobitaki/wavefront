@@ -121,27 +121,28 @@ function _getResValue(instr, resIndex) {
 // ─── State serialization ──────────────────────────────────────────────────────
 // Logical state: Map<nodeName, Map<inputKey, string[]>>
 // Serialised form: plain nested object (IndexedDB / structuredClone compatible).
+// Memory state is NOT stored in snapshots — it is always rebuilt from cycleData.
 
 function _serialize(state) {
-    const out = Object.create(null);
-    state.forEach((inputQueues, nodeName) => {
+    const queues = Object.create(null);
+    state.queues.forEach((inputQueues, nodeName) => {
         const q = Object.create(null);
         inputQueues.forEach((tokens, key) => { q[key] = tokens.slice(); });
-        out[nodeName] = q;
+        queues[nodeName] = q;
     });
-    return out;
+    return queues;
 }
 
 function _deserialize(obj) {
-    const state = new Map();
-    for (const [nodeName, queues] of Object.entries(obj || {})) {
+    const queues = new Map();
+    for (const [nodeName, inputQueuesObj] of Object.entries(obj)) {
         const inputQueues = new Map();
-        for (const [key, tokens] of Object.entries(queues)) {
+        for (const [key, tokens] of Object.entries(inputQueuesObj)) {
             inputQueues.set(key, tokens.slice());
         }
-        state.set(nodeName, inputQueues);
+        queues.set(nodeName, inputQueues);
     }
-    return state;
+    return queues;
 }
 
 // ─── IndexedDB helpers ────────────────────────────────────────────────────────
@@ -310,7 +311,7 @@ class QueueStateEngine {
     async exportToBlob(dot = null, fireLog = null) {
         if (!this.ready) throw new Error('Snapshots not ready — wait for build() to finish.');
         const payload = JSON.stringify({
-            v:                1,
+            v:                2,
             fileKey:          this._fileKey,
             snapshotInterval: this.snapshotInterval,
             maxCycle:         this.maxCycle,
@@ -349,7 +350,7 @@ class QueueStateEngine {
             writer.close();
             const text = await new Response(ds.readable).text();
             const data = JSON.parse(text);
-            if (data.v !== 1) return FAIL;
+            if (data.v !== 2) return FAIL;
             if (expectedFileKey !== null && data.fileKey !== expectedFileKey) return FAIL;
             this.snapshots = new Map(
                 Object.entries(data.snapshots).map(([k, v]) => [parseInt(k, 10), v])
@@ -367,7 +368,7 @@ class QueueStateEngine {
 
     /** @private */
     async _buildSnapshots(onProgress) {
-        const state    = new Map(); // mutable current logical state
+        const state    = { queues: new Map() };
         const interval = this.snapshotInterval;
         const CHUNK    = 500;       // cycles before yielding to keep UI responsive
 
@@ -393,18 +394,14 @@ class QueueStateEngine {
     }
 
     /**
-     * Returns the logical queue state that app.js should render BEFORE processing
-     * `targetCycle`'s instructions — i.e. the state equivalent to what
-     * `replayToCurrentCycle()` used to reconstruct by replaying from cycle 0.
-     *
-     * Time complexity: O(snapshotInterval) replay steps regardless of targetCycle.
-     *
+     * Returns the queue state (only) BEFORE `targetCycle` fires.
+     * Memory is intentionally excluded — rebuild it cheaply from cycleData in app.js.
      * @param  {number} targetCycle
-     * @returns {Map<string, Map<string, string[]>>}
-     *   nodeName → inputKey → ordered array of queued token values (FIFO head first)
+     * @returns {Map<string, Map<string, string[]>>}  nodeName → inputKey → token queue
      */
     getPreCycleState(targetCycle) {
-        if (!this.ready || targetCycle <= 0) return new Map();
+        if (!this.ready || targetCycle <= 0)
+            return new Map();
 
         // We need the state *after* cycle (targetCycle − 1).
         const wantAfter = targetCycle - 1;
@@ -416,9 +413,11 @@ class QueueStateEngine {
         }
 
         // Restore from that snapshot (or start empty if none found).
-        const state = snapshotCycle >= 0
-            ? _deserialize(this.snapshots.get(snapshotCycle))
-            : new Map();
+        const state = {
+            queues: snapshotCycle >= 0
+                ? _deserialize(this.snapshots.get(snapshotCycle))
+                : new Map()
+        };
 
         // Replay the gap: cycles (snapshotCycle + 1) through wantAfter inclusive.
         for (let c = snapshotCycle + 1; c <= wantAfter; c++) {
@@ -426,7 +425,7 @@ class QueueStateEngine {
             for (const instr of instructions) this._applyInstruction(instr, state);
         }
 
-        return state;
+        return state.queues;
     }
 
     /** @private — applies one instruction to the mutable logical state. */
@@ -435,13 +434,13 @@ class QueueStateEngine {
         if (!nodeName) return;
 
         // Pop the head of each input queue when this node fires
-        if (_shouldPopInputTokens(instr) && state.has(nodeName)) {
-            const qs = state.get(nodeName);
+        if (_shouldPopInputTokens(instr) && state.queues.has(nodeName)) {
+            const qs = state.queues.get(nodeName);
             for (const [key, tokens] of qs) {
                 if (tokens.length) tokens.shift(); // FIFO pop
                 if (!tokens.length) qs.delete(key);
             }
-            if (!qs.size) state.delete(nodeName);
+            if (!qs.size) state.queues.delete(nodeName);
         }
 
         // Produce tokens on each outgoing edge
@@ -458,12 +457,13 @@ class QueueStateEngine {
             if (inputIdx === null) inputIdx = resIdx;
 
             const tgt = edge.targetName;
-            if (!state.has(tgt)) state.set(tgt, new Map());
-            const tqs = state.get(tgt);
+            if (!state.queues.has(tgt)) state.queues.set(tgt, new Map());
+            const tqs = state.queues.get(tgt);
             const key = String(inputIdx);
             if (!tqs.has(key)) tqs.set(key, []);
             tqs.get(key).push(String(val));
         }
+
     }
 }
 
