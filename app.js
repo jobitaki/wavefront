@@ -1014,16 +1014,16 @@ class DataflowVisualizer {
             this.performSearch(this.searchTerm);
         }
 
-        // Update rolling stats charts
-        // Record token-in-flight sample for this cycle before drawing
-        const _tokCount = this._countTokensInFlight();
-        if (!this._statsTokenHistory.find(e => e.cycle === this.currentCycle))
-            this._statsTokenHistory.push({ cycle: this.currentCycle, count: _tokCount });
-        // Prune history beyond the last 512 cycles
-        const _maxWindow = 512;
-        if (this._statsTokenHistory.length > _maxWindow * 2)
-            this._statsTokenHistory = this._statsTokenHistory.slice(-_maxWindow);
-        this.updateStatsCharts();
+        // Update rolling stats charts (skip entirely when sidebar is collapsed)
+        if (!document.getElementById('sidebarRight')?.classList.contains('collapsed')) {
+            const _tokCount = this._countTokensInFlight();
+            if (!this._statsTokenHistory.find(e => e.cycle === this.currentCycle))
+                this._statsTokenHistory.push({ cycle: this.currentCycle, count: _tokCount });
+            const _maxWindow = 512;
+            if (this._statsTokenHistory.length > _maxWindow * 2)
+                this._statsTokenHistory = this._statsTokenHistory.slice(-_maxWindow);
+            this.updateStatsCharts();
+        }
     }
 
     /** Count the total number of queued tokens currently in flight. */
