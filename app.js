@@ -63,6 +63,8 @@ class DataflowVisualizer {
         this.dom.fileMenuBtn = document.getElementById('fileMenuBtn');
         this.dom.fileDropdown = document.getElementById('fileDropdown');
         this.dom.sidebarToggle = document.getElementById('sidebarToggle');
+        this.dom.edgeLegend = document.getElementById('edgeLegend');
+        this.dom.edgeLegendToggle = document.getElementById('edgeLegendToggle');
     }
 
     initializeEventListeners() {
@@ -88,6 +90,7 @@ class DataflowVisualizer {
 
         // Stats panel toggle
         document.getElementById('statsToggle')?.addEventListener('click', () => this.toggleStatsPanel());
+        this.dom.edgeLegendToggle?.addEventListener('click', () => this.toggleEdgeLegend());
         
         // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
@@ -1887,17 +1890,19 @@ class DataflowVisualizer {
         }
 
         // Steer instructions
-        if (name.includes('steer')) {
-            if ((name.includes('true') || name.includes('false')) && args.length >= 3) {
-                // true/false steer (1-output): args: decider, data, condition_met
-                const fired = String(at(2)).toLowerCase() !== 'false';
-                return (resIndex === 0 && fired) ? at(1) : null;
-            } else if (args.length >= 3) {
-                // dataflow.steer: args: decider, data, channel_output
-                const channel = Number(at(2));
+        if (name.includes('steer') && args.length >= 3) {
+            // Regular steer: decider, data, output_port
+            // true/false steer: decider, data, condition_met
+            // Prefer numeric third arg as an explicit output port.
+            const thirdRaw = String(at(2)).toLowerCase();
+            const outPort = Number(thirdRaw);
+            if (Number.isInteger(outPort) && outPort >= 0) {
                 const data = at(1);
-                return (resIndex === channel) ? data : null;
+                return (resIndex === outPort) ? data : null;
             }
+
+            const fired = thirdRaw !== 'false';
+            return (resIndex === 0 && fired) ? at(1) : null;
         }
 
         // LoadIndex: op0 op1 computed_addr res0_loaded_data (res0 at index 3)
@@ -2078,6 +2083,15 @@ class DataflowVisualizer {
             // Redraw charts now that panel is visible again
             this.updateStatsCharts();
         }
+    }
+
+    toggleEdgeLegend() {
+        const legend = this.dom.edgeLegend;
+        const btn = this.dom.edgeLegendToggle;
+        if (!legend || !btn) return;
+
+        legend.classList.toggle('collapsed');
+        btn.setAttribute('aria-expanded', legend.classList.contains('collapsed') ? 'false' : 'true');
     }
 
     reuploadDot() {

@@ -99,15 +99,19 @@ function _getResValue(instr, resIndex) {
     if (/(constant|c0|copy|dataflow\.constant|dataflow\.copy|bitcast|freeze)/.test(name))
         return resIndex === 0 ? at(0) : null;
 
-    if (name.includes('steer')) {
-        if ((name.includes('true') || name.includes('false')) && args.length >= 3) {
-            const fired = String(at(2)).toLowerCase() !== 'false';
-            return resIndex === 0 && fired ? at(1) : null;
+    if (name.includes('steer') && args.length >= 3) {
+        // Regular steer: decider, data, output_port
+        // true/false steer: decider, data, condition_met
+        // Prefer numeric third arg as an explicit output port, otherwise
+        // fall back to single-output conditional steer behavior.
+        const thirdRaw = String(at(2)).toLowerCase();
+        const outPort = Number(thirdRaw);
+        if (Number.isInteger(outPort) && outPort >= 0) {
+            return resIndex === outPort ? at(1) : null;
         }
-        if (args.length >= 3) {
-            const channel = Number(at(2));
-            return resIndex === channel ? at(1) : null;
-        }
+
+        const fired = thirdRaw !== 'false';
+        return resIndex === 0 && fired ? at(1) : null;
     }
 
     if (name.includes('loadindex')) return resIndex === 0 ? at(3) : null;

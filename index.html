@@ -269,6 +269,42 @@
 
         <!-- Main Graph Container -->
         <div class="visualization sidebar-open stats-open" id="visualization">
+            <div class="edge-legend collapsed" id="edgeLegend">
+                <button class="edge-legend-toggle" id="edgeLegendToggle" title="Toggle edge legend" aria-expanded="false">
+                    <span class="edge-legend-title">Edge Legend</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="edge-legend-body">
+                    <div class="edge-legend-section">
+                        <div class="edge-legend-section-label">Arrow Color by Type</div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#E74C3C"></span><span>i1 (boolean/control)</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#87CEEB"></span><span>i8</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#5DADE2"></span><span>i16</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#3498DB"></span><span>i32</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#2874A6"></span><span>i64</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#4682B4"></span><span>other integer widths</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#90EE90"></span><span>f16</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#52BE80"></span><span>f32</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#27AE60"></span><span>f64</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#E67E22"></span><span>index</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#9B59B6"></span><span>!llvm.ptr</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#E91E63"></span><span>!dataflow.instruction_pointer</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#8D6E63"></span><span>!ttda.tag</span></div>
+                        <div class="edge-legend-item"><span class="edge-swatch" style="--swatch:#000000"></span><span>unknown/fallback</span></div>
+                    </div>
+                    <div class="edge-legend-section edge-legend-widths">
+                        <div class="edge-legend-section-label">Arrow Width</div>
+                        <div class="edge-legend-item">
+                            <span class="edge-width-sample edge-width-thin"></span>
+                            <span>Thin (penwidth=1): i1 control edges</span>
+                        </div>
+                        <div class="edge-legend-item">
+                            <span class="edge-width-sample edge-width-thick"></span>
+                            <span>Thicker (penwidth=2): all other data edges</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="graph-container">
                 <svg id="graph-svg"></svg>
             </div>
